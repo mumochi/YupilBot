@@ -1,7 +1,7 @@
 import discord
 from discord import app_commands as ac
 
-server_id =  # Server ID for Yuy and the Yupils
+server_id =  # Server ID
 permitted_role = "" # Only users with this role can use the commands
 
 intents = discord.Intents.default() 
