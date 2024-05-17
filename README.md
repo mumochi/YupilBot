@@ -14,3 +14,10 @@ Custom Discord bot with basic chat functions, implemented with slash commands
   ![image](https://github.com/mumochi/YupilBot/assets/149116223/452ff24f-356b-4f1b-b93f-96585221583d)
   ![image](https://github.com/mumochi/YupilBot/assets/149116223/c14132a6-4911-4252-a41b-9b8f7c9dfbbf)
   ![image](https://github.com/mumochi/YupilBot/assets/149116223/6cd7adc4-409a-40ae-9ebd-05a0d6aaa678)
+
+
+### Setup
+* Fill in server-specific values for `server_id` and `permitted_role`
+* Ensure proper role configuration for command permissions
+* Generate a Discord bot token, copy to token.txt, and place token.txt in the YupilBot.py directory
+* Run YupilBot.py
