@@ -9,7 +9,7 @@ intents = discord.Intents.default()
 client = discord.Client(intents = intents)
 tree = ac.CommandTree(client) 
 
-# DeepL authorization
+# DeepL authentication
 try:
     with open("deepl_key.txt") as keyfile:
         auth_key = keyfile.readline()
