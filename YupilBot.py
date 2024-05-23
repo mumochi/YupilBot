@@ -2,8 +2,8 @@ import discord
 from discord import app_commands as ac
 import deepl
 
-server_id = 566788769055768587 # Server ID
-permitted_role = "Yoderator" # Only users with this role can use the commands
+server_id = # Server ID
+permitted_role = "" # Only users with this role can use the commands
 
 intents = discord.Intents.default() 
 client = discord.Client(intents = intents)
