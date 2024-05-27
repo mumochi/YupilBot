@@ -1,13 +1,20 @@
 import discord
 from discord import app_commands as ac
 import deepl
+import time
+
+#For WordCloud
+from wordcloud import WordCloud
+import matplotlib.pyplot as plt
+import PIL.Image
+import io
 
 server_id = # Server ID
 permitted_role = "" # Only users with this role can use the commands
 
-intents = discord.Intents.default() 
+intents = discord.Intents.default()
 client = discord.Client(intents = intents)
-tree = ac.CommandTree(client) 
+tree = ac.CommandTree(client)
 
 # DeepL authentication
 try:
@@ -96,6 +103,65 @@ async def unrestrict(ctx, user: discord.User):
         perms_vc.view_channel = None
         await vc.set_permissions(user, overwrite = perms_vc)
     await ctx.response.send_message(f"{user} unrestricted.")
+
+
+#WordCloud code
+@tree.command(
+    name = "word_cloud",
+    description = "Generates a word cloud of the user's messages.",
+    guild = discord.Object(id = server_id)
+)
+@ac.checks.has_role(permitted_role)
+@ac.describe(
+    user = "User to generate word cloud for."
+)
+async def word_cloud(ctx, user: discord.User):
+    PIL.Image.MAX_IMAGE_PIXELS = 1257943060  # Max image size supported to 30720 x 17280 (HHD)
+    start_time = time.time()
+    word_dict = {}
+    await ctx.response.defer(ephemeral=True)
+    counter = 0
+    skipped_words_dict = {"": True, "\n": True}
+    words = ""
+    for channel in ctx.guild.text_channels:
+        async for message in channel.history(limit=999999999999999999999):
+            if message.author == user:
+                counter += 1
+                words += message.content + " "
+                message_split = message.content.split(' ')
+                for word in message_split:
+                    if word not in skipped_words_dict:
+                        if word in word_dict:
+                            word_dict.update({word : word_dict.get(word)+1})
+                        else:
+                            word_dict.update({word : 1})
+    for channel in ctx.guild.voice_channels:
+        async for message in channel.history(limit=999999999999999999999):
+            if message.author == user:
+                counter += 1
+                message_split = message.content.split(' ')
+                words += message.content + " "
+                for word in message_split:
+                    if word not in skipped_words_dict:
+                        if word in word_dict:
+                            word_dict.update({word : word_dict.get(word)+1})
+                        else:
+                            word_dict.update({word : 1})
+    sorted_word_dict = dict(sorted(word_dict.items(), key=lambda x:x[1], reverse=True))
+    temp_txt_file = io.StringIO(newline='\n')
+    for word_pair in sorted_word_dict:
+        temp_txt_file.write(f'{word_pair},{sorted_word_dict.get(word_pair)};')
+    temp_txt_file.seek(0)
+    word_cloud = WordCloud(width=3840, height=2160, max_words=100000000).generate(words)
+
+    end_time = time.time()
+    plt.imshow(word_cloud)
+    plt.axis("off")
+    plt.show()
+    await ctx.followup.send(file=discord.File(temp_txt_file, filename="wordfrequencylist.txt") ,content=f'{user.name} has sent {counter} messages. Execution time took {end_time-start_time}')
+    # print(temp_txt_file.getvalue())
+    PIL.Image.MAX_IMAGE_PIXELS = 178956970  # Return to default image size
+
 
 # Translation command using DeepL API
 @tree.command(
