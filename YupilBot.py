@@ -1,8 +1,11 @@
 import discord
 from discord import app_commands as ac
 import deepl
+from wordcloud import WordCloud
+from collections import Counter
+import time
 
-server_id = # Server ID
+server_id =  # Server ID
 permitted_role = "" # Only users with this role can use the commands
 
 intents = discord.Intents.default() 
@@ -111,6 +114,49 @@ async def translate(ctx, text: str):
     """Translates text to English (EN-US) using the DeepL API."""
     tr_text = translator.translate_text(text, target_lang = "EN-US")
     await ctx.response.send_message(f"{text} -> " + str(tr_text) + " (EN-US)")
+
+# Pull message history command
+@tree.command(
+    name = "word_cloud",
+    description = "Generates a word cloud of the user's messages.",
+    guild = discord.Object(id = server_id)
+)
+@ac.checks.has_role(permitted_role)
+@ac.describe(
+    user = "User to generate word cloud for",
+    image_width = "Word cloud image width",
+    image_height = "Word cloud image height",
+    max_words = "Max # words to display in word cloud"
+)
+async def word_cloud(ctx, user: discord.User, image_width: int = None, image_height: int = None, max_words: int = None):
+    start_time = time.time()
+    if image_width == None:
+        image_width = 1280
+    if image_height == None:
+        image_height = 720
+    if max_words == None:
+        max_words = 200
+    wc = WordCloud(width = image_width, height = image_height, max_words = max_words)
+    counts_all = Counter()
+    await ctx.response.defer(ephemeral = True)
+    for channel in ctx.guild.text_channels:
+        async for message in channel.history(limit = None):
+            if message.author == user:
+                counts_line = wc.process_text(message.content)
+                counts_all.update(counts_line)
+                
+    for channel in ctx.guild.voice_channels:
+        async for message in channel.history(limit = None):
+            if message.author == user:
+                counts_line = wc.process_text(message.content)
+                counts_all.update(counts_line)
+    
+    wc.generate_from_frequencies(counts_all)
+    wc.to_file("test_wc.png")
+    end_time = time.time()
+    await ctx.channel.send(file = discord.File("test_wc.png"))
+    await ctx.followup.send(f"Generated word cloud for {user} in {round(end_time - start_time, 0)} seconds")
+
 
 # Sync commands
 @client.event
