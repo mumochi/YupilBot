@@ -117,6 +117,8 @@ async def translate(ctx, text: str):
     await ctx.response.send_message(f"{text} -> " + str(tr_text) + " (EN-US)")
 
 @tree.command(
+    name = "get_vc_hours",
+    description = "Gets the user's time spent in VC",
     name = "get_favorite_emojis",
     description = "Gets the user's most used emoji and reaction",
 # Pull message history command
@@ -127,6 +129,53 @@ async def translate(ctx, text: str):
 )
 @ac.checks.has_role(permitted_role)
 @ac.describe(
+    user = "User to get vc hours for",
+    log_channel = "Channel Dyno logs are saved in",
+)
+async def get_vc_hours(ctx, user: discord.User, log_channel: discord.TextChannel):
+    time_in_vc = 0
+    last_leave = None
+    await ctx.response.defer(ephemeral=True)
+    channel_messages = [message async for message in log_channel.history(limit=None)]
+    for message in channel_messages:
+        for embed in message.embeds:
+            if embed.description is not None:
+                if str(user.id) in embed.description:
+                    if "left voice" in embed.description:
+                        if last_leave is None:
+                            last_leave = message.created_at
+                        else:
+                            raise Exception("Leave without join detected")
+                    elif "joined voice" in embed.description:
+                        if last_leave is not None:
+                            time_in_vc += (last_leave - message.created_at).total_seconds()
+                            last_leave = None
+                        else:
+                            raise Exception("Join without leave detected")
+
+    await ctx.followup.send(f"Seconds spent in VC {time_in_vc}")
+
+@tree.command(
+    name = "get_nickname_changes",
+    description = "Gets the number of the user's nickname changes",
+    guild = discord.Object(id = server_id)
+)
+@ac.checks.has_role(permitted_role)
+@ac.describe(
+    user = "User to get nicknames for for",
+    log_channel = "Channel Dyno logs are saved in",
+)
+async def get_nickname_changes(ctx, user: discord.User, log_channel: discord.TextChannel):
+    await ctx.response.defer(ephemeral=True)
+    name_changes = 0
+    channel_messages = [message async for message in log_channel.history(limit=None)]
+    for message in channel_messages:
+        for embed in message.embeds:
+            if embed.description is not None:
+                if str(user.id) in embed.description:
+                    if "nickname changed" in embed.description:
+                        name_changes += 1
+    await ctx.followup.send(f"Nickname changes {name_changes}")
     user = "User to get top emoji and reaction for",
 )
 async def get_favorite_emojis(ctx, user: discord.User):
