@@ -144,7 +144,10 @@ async def get_favorite_emojis(ctx, user: discord.User):
     favorite_emoji = max(emoji_dict, key=lambda x: emoji_dict[x])
     favorite_react = max(react_dict, key=lambda x: react_dict[x])
     favorite_overall = max(overall_dict, key=lambda x: overall_dict[x])
-    await ctx.followup.send(f"User favorite emoji: {favorite_emoji} {emoji_dict[favorite_emoji]}, react: {favorite_react} {react_dict[favorite_react]}, overall {favorite_overall} {overall_dict[favorite_overall]}.")
+    total_reactions = 0
+    for reaction in react_dict:
+        total_reactions += react_dict[reaction]
+    await ctx.followup.send(f"User favorite emoji: {favorite_emoji} {emoji_dict[favorite_emoji]}, react: {favorite_react} {react_dict[favorite_react]}, overall {favorite_overall} {overall_dict[favorite_overall]}. Total reactions {total_reactions}")
 
 # Sync commands
 @client.event
