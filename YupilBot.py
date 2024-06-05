@@ -1,8 +1,12 @@
 import discord
 from discord import app_commands as ac
 import deepl
+import re
+from wordcloud import WordCloud
+from collections import Counter
+import time
 
-server_id = # Server ID
+server_id =  # Server ID
 permitted_role = "" # Only users with this role can use the commands
 
 intents = discord.Intents.default() 
@@ -115,6 +119,12 @@ async def translate(ctx, text: str):
 @tree.command(
     name = "get_vc_hours",
     description = "Gets the user's time spent in VC",
+    name = "get_favorite_emojis",
+    description = "Gets the user's most used emoji and reaction",
+# Pull message history command
+@tree.command(
+    name = "word_cloud",
+    description = "Generates a word cloud of the user's messages.",
     guild = discord.Object(id = server_id)
 )
 @ac.checks.has_role(permitted_role)
@@ -166,6 +176,67 @@ async def get_nickname_changes(ctx, user: discord.User, log_channel: discord.Tex
                     if "nickname changed" in embed.description:
                         name_changes += 1
     await ctx.followup.send(f"Nickname changes {name_changes}")
+    user = "User to get top emoji and reaction for",
+)
+async def get_favorite_emojis(ctx, user: discord.User):
+    emoji_dict = {}
+    react_dict = {}
+    overall_dict = {}
+    await ctx.response.defer(ephemeral=True)
+    for channel in ctx.guild.text_channels:
+        async for message in channel.history(limit = None):
+            if message.author == user:
+                found_emojis = re.findall(":.+?:", message.content)
+                for emoji in found_emojis:
+                    emoji_dict.update({emoji: emoji_dict.get(emoji) + 1 if emoji_dict.get(emoji) else 1})
+                    overall_dict.update({emoji: overall_dict.get(emoji) + 1 if overall_dict.get(emoji) else 1})
+            elif message.reactions:
+                for reaction in message.reactions:
+                    users = [user async for user in reaction.users()]
+                    if user in users:
+                        react_dict.update({reaction: react_dict.get(reaction) + 1 if react_dict.get(reaction) else 1})
+                        overall_dict.update({reaction: react_dict.get(reaction) + 1 if react_dict.get(reaction) else 1})
+
+    favorite_emoji = max(emoji_dict, key=lambda x: emoji_dict[x])
+    favorite_react = max(react_dict, key=lambda x: react_dict[x])
+    favorite_overall = max(overall_dict, key=lambda x: overall_dict[x])
+    total_reactions = 0
+    for reaction in react_dict:
+        total_reactions += react_dict[reaction]
+    await ctx.followup.send(f"User favorite emoji: {favorite_emoji} {emoji_dict[favorite_emoji]}, react: {favorite_react} {react_dict[favorite_react]}, overall {favorite_overall} {overall_dict[favorite_overall]}. Total reactions {total_reactions}")
+    user = "User to generate word cloud for",
+    image_width = "Word cloud image width",
+    image_height = "Word cloud image height",
+    max_words = "Max # words to display in word cloud"
+)
+async def word_cloud(ctx, user: discord.User, image_width: int = None, image_height: int = None, max_words: int = None):
+    start_time = time.time()
+    if image_width == None:
+        image_width = 1280
+    if image_height == None:
+        image_height = 720
+    if max_words == None:
+        max_words = 200
+    wc = WordCloud(width = image_width, height = image_height, max_words = max_words)
+    counts_all = Counter()
+    await ctx.response.defer(ephemeral = True)
+    for channel in ctx.guild.text_channels:
+        async for message in channel.history(limit = None):
+            if message.author == user:
+                counts_line = wc.process_text(message.content)
+                counts_all.update(counts_line)
+                
+    for channel in ctx.guild.voice_channels:
+        async for message in channel.history(limit = None):
+            if message.author == user:
+                counts_line = wc.process_text(message.content)
+                counts_all.update(counts_line)
+    
+    wc.generate_from_frequencies(counts_all)
+    wc.to_file("test_wc.png")
+    end_time = time.time()
+    await ctx.channel.send(file = discord.File("test_wc.png"))
+    await ctx.followup.send(f"Generated word cloud for {user} in {round(end_time - start_time, 0)} seconds")
 
 # Sync commands
 @client.event
