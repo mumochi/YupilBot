@@ -1,9 +1,13 @@
 import discord
 from discord import app_commands as ac
 import deepl
+<<<<<<< emote-and-reaction-counter
+import re
+=======
 from wordcloud import WordCloud
 from collections import Counter
 import time
+>>>>>>> wordcloud-starmasaurus
 
 server_id =  # Server ID
 permitted_role = "" # Only users with this role can use the commands
@@ -115,14 +119,50 @@ async def translate(ctx, text: str):
     tr_text = translator.translate_text(text, target_lang = "EN-US")
     await ctx.response.send_message(f"{text} -> " + str(tr_text) + " (EN-US)")
 
+<<<<<<< emote-and-reaction-counter
+@tree.command(
+    name = "get_favorite_emojis",
+    description = "Gets the user's most used emoji and reaction",
+=======
 # Pull message history command
 @tree.command(
     name = "word_cloud",
     description = "Generates a word cloud of the user's messages.",
+>>>>>>> wordcloud-starmasaurus
     guild = discord.Object(id = server_id)
 )
 @ac.checks.has_role(permitted_role)
 @ac.describe(
+<<<<<<< emote-and-reaction-counter
+    user = "User to get top emoji and reaction for",
+)
+async def get_favorite_emojis(ctx, user: discord.User):
+    emoji_dict = {}
+    react_dict = {}
+    overall_dict = {}
+    await ctx.response.defer(ephemeral=True)
+    for channel in ctx.guild.text_channels:
+        async for message in channel.history(limit = None):
+            if message.author == user:
+                found_emojis = re.findall(":.+?:", message.content)
+                for emoji in found_emojis:
+                    emoji_dict.update({emoji: emoji_dict.get(emoji) + 1 if emoji_dict.get(emoji) else 1})
+                    overall_dict.update({emoji: overall_dict.get(emoji) + 1 if overall_dict.get(emoji) else 1})
+            elif message.reactions:
+                for reaction in message.reactions:
+                    users = [user async for user in reaction.users()]
+                    if user in users:
+                        react_dict.update({reaction: react_dict.get(reaction) + 1 if react_dict.get(reaction) else 1})
+                        overall_dict.update({reaction: react_dict.get(reaction) + 1 if react_dict.get(reaction) else 1})
+
+    favorite_emoji = max(emoji_dict, key=lambda x: emoji_dict[x])
+    favorite_react = max(react_dict, key=lambda x: react_dict[x])
+    favorite_overall = max(overall_dict, key=lambda x: overall_dict[x])
+    total_reactions = 0
+    for reaction in react_dict:
+        total_reactions += react_dict[reaction]
+    await ctx.followup.send(f"User favorite emoji: {favorite_emoji} {emoji_dict[favorite_emoji]}, react: {favorite_react} {react_dict[favorite_react]}, overall {favorite_overall} {overall_dict[favorite_overall]}. Total reactions {total_reactions}")
+=======
     user = "User to generate word cloud for",
     image_width = "Word cloud image width",
     image_height = "Word cloud image height",
@@ -157,6 +197,7 @@ async def word_cloud(ctx, user: discord.User, image_width: int = None, image_hei
     await ctx.channel.send(file = discord.File("test_wc.png"))
     await ctx.followup.send(f"Generated word cloud for {user} in {round(end_time - start_time, 0)} seconds")
 
+>>>>>>> wordcloud-starmasaurus
 
 # Sync commands
 @client.event
