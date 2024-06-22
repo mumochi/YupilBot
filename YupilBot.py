@@ -6,8 +6,8 @@ from wordcloud import WordCloud
 from collections import Counter
 import time
 
-server_id =  # Server ID
-permitted_role = "" # Only users with this role can use the commands
+server_id = 1122724888642330685 # Server ID
+permitted_role = "Yoderator" # Only users with this role can use the commands
 
 intents = discord.Intents.default() 
 client = discord.Client(intents = intents)
@@ -130,6 +130,8 @@ async def translate(ctx, text: str):
 )
 async def get_vc_hours(ctx, user: discord.User, log_channel: discord.TextChannel):
     time_in_vc = 0
+    num_valid = 0
+    num_invalid = 0
     last_leave = None
     await ctx.response.defer(ephemeral=True)
     channel_messages = [message async for message in log_channel.history(limit=None)]
@@ -141,14 +143,18 @@ async def get_vc_hours(ctx, user: discord.User, log_channel: discord.TextChannel
                         if last_leave is None:
                             last_leave = message.created_at
                         else:
-                            raise Exception("Leave without join detected")
+                            num_invalid += 1
                     elif "joined voice" in embed.description:
                         if last_leave is not None:
                             time_in_vc += (last_leave - message.created_at).total_seconds()
                             last_leave = None
+                            num_valid += 1
                         else:
-                            raise Exception("Join without leave detected")
+                            num_invalid += 1
 
+    average_session = time_in_vc / num_valid
+    est_invalid_time = average_session * num_invalid
+    time_in_vc += est_invalid_time
     await ctx.followup.send(f"Seconds spent in VC {time_in_vc}")
 
 @tree.command(
@@ -207,7 +213,9 @@ async def get_favorite_emojis(ctx, user: discord.User):
     total_reactions = 0
     for reaction in react_dict:
         total_reactions += react_dict[reaction]
-    await ctx.followup.send(f"User favorite emoji: {favorite_emoji} {emoji_dict[favorite_emoji]}, react: {favorite_react} {react_dict[favorite_react]}, overall {favorite_overall} {overall_dict[favorite_overall]}. Total reactions {total_reactions}")
+    
+    await ctx.channel.send(f"{user} favorite emoji: {favorite_emoji} {emoji_dict[favorite_emoji]}, react: {favorite_react} {react_dict[favorite_react]}, overall {favorite_overall} {overall_dict[favorite_overall]}. Total reactions {total_reactions}")
+    await ctx.followup.send(f"{user} favorite emoji: {favorite_emoji} {emoji_dict[favorite_emoji]}, react: {favorite_react} {react_dict[favorite_react]}, overall {favorite_overall} {overall_dict[favorite_overall]}. Total reactions {total_reactions}")
 
 # Pull message history command
 @tree.command(
