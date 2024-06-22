@@ -116,15 +116,11 @@ async def translate(ctx, text: str):
     tr_text = translator.translate_text(text, target_lang = "EN-US")
     await ctx.response.send_message(f"{text} -> " + str(tr_text) + " (EN-US)")
 
+
+
 @tree.command(
     name = "get_vc_hours",
     description = "Gets the user's time spent in VC",
-    name = "get_favorite_emojis",
-    description = "Gets the user's most used emoji and reaction",
-# Pull message history command
-@tree.command(
-    name = "word_cloud",
-    description = "Generates a word cloud of the user's messages.",
     guild = discord.Object(id = server_id)
 )
 @ac.checks.has_role(permitted_role)
@@ -176,6 +172,14 @@ async def get_nickname_changes(ctx, user: discord.User, log_channel: discord.Tex
                     if "nickname changed" in embed.description:
                         name_changes += 1
     await ctx.followup.send(f"Nickname changes {name_changes}")
+
+@tree.command(
+    name = "get_favorite_emojis",
+    description = "Gets the user's most used emoji and reaction",
+    guild = discord.Object(id = server_id)
+)
+@ac.checks.has_role(permitted_role)
+@ac.describe(
     user = "User to get top emoji and reaction for",
 )
 async def get_favorite_emojis(ctx, user: discord.User):
@@ -204,6 +208,15 @@ async def get_favorite_emojis(ctx, user: discord.User):
     for reaction in react_dict:
         total_reactions += react_dict[reaction]
     await ctx.followup.send(f"User favorite emoji: {favorite_emoji} {emoji_dict[favorite_emoji]}, react: {favorite_react} {react_dict[favorite_react]}, overall {favorite_overall} {overall_dict[favorite_overall]}. Total reactions {total_reactions}")
+
+# Pull message history command
+@tree.command(
+    name = "word_cloud",
+    description = "Generates a word cloud of the user's messages.",
+    guild = discord.Object(id = server_id)
+)
+@ac.checks.has_role(permitted_role)
+@ac.describe(
     user = "User to generate word cloud for",
     image_width = "Word cloud image width",
     image_height = "Word cloud image height",
