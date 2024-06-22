@@ -6,8 +6,8 @@ from wordcloud import WordCloud
 from collections import Counter
 import time
 
-server_id = 1122724888642330685 # Server ID
-permitted_role = "Yoderator" # Only users with this role can use the commands
+server_id =  # Server ID
+permitted_role = "" # Only users with this role can use the commands
 
 intents = discord.Intents.default() 
 client = discord.Client(intents = intents)
