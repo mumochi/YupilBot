@@ -1,9 +1,17 @@
 import discord
 from discord import app_commands as ac
 import deepl
+import configparser
+import os
+from dotenv import load_dotenv
 
-server_id = # Server ID
-permitted_role = "" # Only users with this role can use the commands
+if os.getenv('YUPIL_ENV') != "prod":
+    load_dotenv(".env.local")
+else:
+    load_dotenv(".env")
+
+server_id = os.getenv('DISCORD_SERVER_ID')  # Server ID
+permitted_role = os.getenv('PERMITTED_ROLE')  # Only users with this role can use the commands
 
 intents = discord.Intents.default() 
 client = discord.Client(intents = intents)
@@ -112,6 +120,7 @@ async def translate(ctx, text: str):
     tr_text = translator.translate_text(text, target_lang = "EN-US")
     await ctx.response.send_message(f"{text} -> " + str(tr_text) + " (EN-US)")
 
+
 # Sync commands
 @client.event
 async def on_ready():
@@ -119,12 +128,14 @@ async def on_ready():
     print("Logged in and ready to receive commands.")
 
 # Bot login
+'''
 try:
     with open("token.txt") as tokenfile:
         token = tokenfile.readline()
 except FileNotFoundError:
     print("Missing token.txt; generate a token and copy-paste it into token.txt in the YupilBot.py directory.")
-
+    '''
+token = os.getenv('DISCORD_TOKEN')
 try:
     client.run(token)
 except:
