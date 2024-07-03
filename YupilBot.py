@@ -10,19 +10,20 @@ if os.getenv('YUPIL_ENV') != "prod":
 else:
     load_dotenv(".env")
 
+config = configparser.ConfigParser()
+config.read('config.ini')
+
+
 server_id = os.getenv('DISCORD_SERVER_ID')  # Server ID
-permitted_role = os.getenv('PERMITTED_ROLE')  # Only users with this role can use the commands
+permitted_role = config[os.getenv('YUPIL_ENV')]['permitted_role']  # Only users with this role can use the commands
 
 intents = discord.Intents.default() 
-client = discord.Client(intents = intents)
-tree = ac.CommandTree(client) 
+client = discord.Client(intents = intents, max_messages = 20000)
+tree = ac.CommandTree(client)
+
 
 # DeepL authentication
-try:
-    with open("deepl_key.txt") as keyfile:
-        auth_key = keyfile.readline()
-except FileNotFoundError:
-    print("Missing deepl_key.txt; generate an auth key and copy-paste it into deepl_key.txt in the YupilBot.py directory.")
+auth_key = os.getenv('DEEPL_API_TOKEN')
 
 try:
     translator = deepl.Translator(auth_key)
@@ -120,6 +121,25 @@ async def translate(ctx, text: str):
     tr_text = translator.translate_text(text, target_lang = "EN-US")
     await ctx.response.send_message(f"{text} -> " + str(tr_text) + " (EN-US)")
 
+@client.event
+async def on_raw_message_delete(message: discord.RawMessageDeleteEvent):
+    channel = client.get_channel(message.channel_id)
+    attach = []
+    note = f"Message {message.message_id} deleted in {channel.jump_url}."
+    if message.cached_message:
+        note += f"\nSender: {message.cached_message.author} | {message.cached_message.author.id} Link: {message.cached_message.jump_url} Content:\n"
+        note += f"{message.cached_message.content}"
+        for attachment in message.cached_message.attachments:
+            if attachment.content_type in ("image/png", "image/jpeg", "image/webp", "image/gif", "video/mov", "video/mp4", "video/mpeg", "audio/mpeg", "audio/wav"):
+                try:
+                     attach.append(await attachment.to_file(use_cached=True))
+                except:
+                    note += f"\nUnable to save attachment. Was {attachment.content_type}."
+            else:
+                note += f"\nUnknown attachment of type {attachment.content_type}"
+    else:
+        note += f"\nMessage not cached, unable to display content."
+    await channel.send(content=note)
 
 # Sync commands
 @client.event
@@ -128,13 +148,6 @@ async def on_ready():
     print("Logged in and ready to receive commands.")
 
 # Bot login
-'''
-try:
-    with open("token.txt") as tokenfile:
-        token = tokenfile.readline()
-except FileNotFoundError:
-    print("Missing token.txt; generate a token and copy-paste it into token.txt in the YupilBot.py directory.")
-    '''
 token = os.getenv('DISCORD_TOKEN')
 try:
     client.run(token)
