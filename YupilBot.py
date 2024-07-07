@@ -123,6 +123,7 @@ async def translate(ctx, text: str):
 
 @client.event
 async def on_raw_message_delete(message: discord.RawMessageDeleteEvent):
+    log_channel = client.get_channel(int(config[os.getenv('YUPIL_ENV')]['log_channel']))
     channel = client.get_channel(message.channel_id)
     attach = []
     note = f"Message {message.message_id} deleted in {channel.jump_url}."
@@ -139,7 +140,8 @@ async def on_raw_message_delete(message: discord.RawMessageDeleteEvent):
                 note += f"\nUnknown attachment of type {attachment.content_type}"
     else:
         note += f"\nMessage not cached, unable to display content."
-    await channel.send(content=note)
+    await log_channel.send(content=note)
+
 
 # Sync commands
 @client.event
