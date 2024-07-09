@@ -128,39 +128,63 @@ async def translate(ctx, text: str):
 async def on_raw_message_delete(message: discord.RawMessageDeleteEvent):
     deletion_color = discord.Color.from_rgb(255, 71, 15)
     timestamp = datetime.datetime.now()
-    guild = bot.get_guild(int(server_id))
     log_channel = bot.get_channel(int(config[os.getenv('YUPIL_ENV')]['log_channel']))
     attach = []
 
     if message.cached_message:
-        user_link = await bot.fetch_user(message.cached_message.author.id) # Neither user_link works as intended
-        user_link = discord.utils.get(guild.members, id = message.cached_message.author.id)
-        embedVar = discord.Embed(title = f"Message sent by {user_link} deleted in {message.cached_message.jump_url}",
-                                 description = message.cached_message.content,
+        user_link = await bot.fetch_user(message.cached_message.author.id)
+        embedVar = discord.Embed(title = None,
+                                 description = f"**Message sent by {user_link.mention} deleted in {message.cached_message.jump_url}**\n{message.cached_message.content}",
                                  color = deletion_color,
                                  timestamp = timestamp)
         embedVar.set_author(name = message.cached_message.author, 
                             icon_url = message.cached_message.author.avatar.url)
         embedVar.set_footer(text = f"Author: {message.cached_message.author} | ID: {message.cached_message.author.id}")
 
+        i = 1
+        num_attachments = len(message.cached_message.attachments)
         for attachment in message.cached_message.attachments:
             if attachment.content_type in ("image/png", "image/jpeg", "image/webp", "image/gif", "video/mov", "video/mp4", "video/mpeg", "audio/mpeg", "audio/wav"):
                 try:
                      attach.append(await attachment.to_file(use_cached=True))
                 except:
-                    note = f"Unable to save attachment. Was {attachment.content_type}, filename: {attachment.filename}"
+                    note = f"Unable to save attachment of type `{attachment.content_type}`, filename: **{attachment.filename}**"
+                    embedVar.add_field(name = f"Attachment {i}/{num_attachments}:", value = note, inline = False)
             else:
-                note = f"Unknown attachment of type {attachment.content_type}, filename: {attachment.filename}"
-            embedVar.add_field(name = "Attachment:", value = note, inline = False)
+                note = f"Unable to save attachment of type `{attachment.content_type}`, filename: **{attachment.filename}**"
+                embedVar.add_field(name = f"Attachment {i}/{num_attachments}:", value = note, inline = False)
+            i += 1 
+
 
     else:
         note = "Message not cached, unable to display content."
-        channel = discord.utils.get(guild.channels, id = message.channel_id) # Channel link doesn't work as intended
-        embedVar = discord.Embed(title = f"Uncached message deleted in #{channel}",
-                                 description = note,
+        channel = bot.get_channel(message.channel_id)
+        embedVar = discord.Embed(title = None,
+                                 description = f"**Uncached message deleted in {channel.jump_url}**\n{note}",
                                  color = deletion_color,
                                  timestamp = timestamp)
         embedVar.set_footer(text = f"Message ID: {message.message_id}") 
+
+    await log_channel.send(embed = embedVar)
+
+
+@bot.event
+async def on_raw_message_edit(message: discord.RawMessageUpdateEvent):
+    edit_color = discord.Color.from_rgb(51, 127, 213)
+    timestamp = datetime.datetime.now()
+    log_channel = bot.get_channel(int(config[os.getenv('YUPIL_ENV')]['log_channel']))
+
+    if message.cached_message:
+        user_link = await bot.fetch_user(message.cached_message.author.id)
+        embedVar = discord.Embed(title = None,
+                                 description = f"**Message sent by {user_link.mention} edited in {message.cached_message.jump_url}**",
+                                 color = edit_color,
+                                 timestamp = timestamp)
+        embedVar.set_author(name = message.cached_message.author, 
+                            icon_url = message.cached_message.author.avatar.url)
+        embedVar.set_footer(text = f"Author: {message.cached_message.author} | ID: {message.cached_message.author.id}")
+        embedVar.add_field(name = "Before:", value = message.cached_message.content, inline = False)
+        embedVar.add_field(name = "After:", value = message.data.get("content"), inline = False)
 
     await log_channel.send(embed = embedVar)
 
