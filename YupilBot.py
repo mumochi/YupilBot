@@ -1,9 +1,11 @@
 import discord
 from discord import app_commands as ac
+from discord.ext import commands
 import deepl
 import configparser
 import os
 from dotenv import load_dotenv
+import datetime
 
 if os.getenv('YUPIL_ENV') != "prod":
     load_dotenv(".env.local")
@@ -18,9 +20,10 @@ server_id = os.getenv('DISCORD_SERVER_ID')  # Server ID
 permitted_role = config[os.getenv('YUPIL_ENV')]['permitted_role']  # Only users with this role can use the commands
 
 intents = discord.Intents.default() 
-client = discord.Client(intents = intents, max_messages = 20000)
-tree = ac.CommandTree(client)
-
+intents.message_content = True
+intents.members = True
+bot = commands.Bot(command_prefix = '/', intents = intents, max_messages = 20000)
+tree = bot.tree
 
 # DeepL authentication
 auth_key = os.getenv('DEEPL_API_TOKEN')
@@ -121,30 +124,50 @@ async def translate(ctx, text: str):
     tr_text = translator.translate_text(text, target_lang = "EN-US")
     await ctx.response.send_message(f"{text} -> " + str(tr_text) + " (EN-US)")
 
-@client.event
+@bot.event
 async def on_raw_message_delete(message: discord.RawMessageDeleteEvent):
-    log_channel = client.get_channel(int(config[os.getenv('YUPIL_ENV')]['log_channel']))
-    channel = client.get_channel(message.channel_id)
+    deletion_color = discord.Color.from_rgb(255, 71, 15)
+    timestamp = datetime.datetime.now()
+    guild = bot.get_guild(int(server_id))
+    log_channel = bot.get_channel(int(config[os.getenv('YUPIL_ENV')]['log_channel']))
     attach = []
-    note = f"Message {message.message_id} deleted in {channel.jump_url}."
+
     if message.cached_message:
-        note += f"\nSender: {message.cached_message.author} | {message.cached_message.author.id} Link: {message.cached_message.jump_url} Content:\n"
-        note += f"{message.cached_message.content}"
+        user_link = await bot.fetch_user(message.cached_message.author.id) # Neither user_link works as intended
+        user_link = discord.utils.get(guild.members, id = message.cached_message.author.id)
+        embedVar = discord.Embed(title = f"Message sent by {user_link} deleted in {message.cached_message.jump_url}",
+                                 description = message.cached_message.content,
+                                 color = deletion_color,
+                                 timestamp = timestamp)
+        embedVar.set_author(name = message.cached_message.author, 
+                            icon_url = message.cached_message.author.avatar.url)
+        embedVar.set_footer(text = f"Author: {message.cached_message.author} | ID: {message.cached_message.author.id}")
+
         for attachment in message.cached_message.attachments:
             if attachment.content_type in ("image/png", "image/jpeg", "image/webp", "image/gif", "video/mov", "video/mp4", "video/mpeg", "audio/mpeg", "audio/wav"):
                 try:
                      attach.append(await attachment.to_file(use_cached=True))
                 except:
-                    note += f"\nUnable to save attachment. Was {attachment.content_type}."
+                    note = f"Unable to save attachment. Was {attachment.content_type}, filename: {attachment.filename}"
             else:
-                note += f"\nUnknown attachment of type {attachment.content_type}"
+                note = f"Unknown attachment of type {attachment.content_type}, filename: {attachment.filename}"
+            embedVar.add_field(name = "Attachment:", value = note, inline = False)
+
     else:
-        note += f"\nMessage not cached, unable to display content."
-    await log_channel.send(content=note)
+        note = "Message not cached, unable to display content."
+        channel = discord.utils.get(guild.channels, id = message.channel_id) # Channel link doesn't work as intended
+        embedVar = discord.Embed(title = f"Uncached message deleted in #{channel}",
+                                 description = note,
+                                 color = deletion_color,
+                                 timestamp = timestamp)
+        embedVar.set_footer(text = f"Message ID: {message.message_id}") 
+
+    await log_channel.send(embed = embedVar)
+
 
 
 # Sync commands
-@client.event
+@bot.event
 async def on_ready():
     await tree.sync(guild = discord.Object(id = server_id))
     print("Logged in and ready to receive commands.")
@@ -152,6 +175,6 @@ async def on_ready():
 # Bot login
 token = os.getenv('DISCORD_TOKEN')
 try:
-    client.run(token)
+    bot.run(token)
 except:
     print("Invalid token - check current token or generate a new one.")
