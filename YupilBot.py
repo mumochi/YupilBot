@@ -149,11 +149,11 @@ async def on_raw_message_delete(message: discord.RawMessageDeleteEvent):
                     if attachment.content_type in ("image/png", "image/jpeg", "image/webp", "image/gif", "video/mov", "video/mp4", "video/mpeg", "audio/mpeg", "audio/wav"):
                         try:
                              attach.append(await attachment.to_file(use_cached=True))
-                        except:
+                        except BaseException as failure:
                             note = f"Unable to save attachment of type `{attachment.content_type}`, filename: **{attachment.filename}**"
                             embedVar.add_field(name = f"Attachment {i}/{num_attachments}:", value = note, inline = False)
                     else:
-                        note = f"Unable to save attachment of type `{attachment.content_type}`, filename: **{attachment.filename}**"
+                        note = f"Unable to save attachment of unsupported type `{attachment.content_type}`, filename: **{attachment.filename}**"
                         embedVar.add_field(name = f"Attachment {i}/{num_attachments}:", value = note, inline = False)
                     i += 1
 
@@ -167,7 +167,7 @@ async def on_raw_message_delete(message: discord.RawMessageDeleteEvent):
                                          timestamp = timestamp)
                 embedVar.set_footer(text = f"Message ID: {message.message_id}")
 
-            await log_channel.send(embed = embedVar)
+            await log_channel.send(embed = embedVar, files=attach)
     except BaseException as e:
         note = "**Error occurred when logging deleted message**\n"
         embedVar = discord.Embed(title=None,
