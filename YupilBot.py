@@ -1,3 +1,6 @@
+import sys
+import time
+
 import discord
 from discord import app_commands as ac
 from discord.ext import commands
@@ -47,6 +50,22 @@ async def chat(ctx, chat_message: str, channel: discord.TextChannel):
     """Sends a chat message to the indicated text channel."""
     await channel.send(chat_message)
     await ctx.response.send_message(f"Message sent to {channel}", delete_after = 1)
+
+@tree.command(
+        name = "kill_me",
+        description = "You horrible person. What did the lil guy ever do to you?!",
+        guild = discord.Object(id = server_id)
+)
+@ac.checks.has_role(permitted_role)
+@ac.describe(
+        reason = "Motive for the murder."
+)
+async def kill_me(ctx: discord.ext.commands.Context, reason: str):
+    """Sends a chat message to the indicated text channel."""
+    log_channel = bot.get_channel(int(config[os.getenv('YUPIL_ENV')]['log_channel']))
+    await log_channel.send(f"{ctx.user.global_name} murdered Yupil Bot for: {reason} <:yuyskull:1160100826975567892>")
+    sys.exit(reason)
+
 
 # DM command: bot sends a DM to a user on the server
 @tree.command(
