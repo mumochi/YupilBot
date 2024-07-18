@@ -21,7 +21,7 @@ permitted_role = config[os.getenv('YUPIL_ENV')]['permitted_role']  # Only users 
 intents = discord.Intents.default() 
 intents.message_content = True
 intents.members = True
-bot = commands.Bot(command_prefix = '/', intents = intents, max_messages = 20000)
+bot = commands.Bot(command_prefix = '/', intents = intents, max_messages = int(config[os.getenv('YUPIL_ENV')]['cache_size']))
 tree = bot.tree
 
 # DeepL authentication
