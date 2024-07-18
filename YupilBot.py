@@ -129,45 +129,44 @@ async def on_raw_message_delete(message: discord.RawMessageDeleteEvent):
     timestamp = datetime.datetime.now()
     log_channel = bot.get_channel(int(config[os.getenv('YUPIL_ENV')]['log_channel']))
     attach = []
-
     try:
-        if message.channel_id != int(config[os.getenv('YUPIL_ENV')]['log_channel']) and message.channel_id != int(config[os.getenv('YUPIL_ENV')]['ignore_mod_logs_id']):
-            if message.cached_message:
-                user_link = await bot.fetch_user(message.cached_message.author.id)
-                embedVar = discord.Embed(title = None,
+        if message.cached_message:
+            if message.cached_message.author.bot:
+                return
+            user_link = await bot.fetch_user(message.cached_message.author.id)
+            embedVar = discord.Embed(title = None,
                                          description = f"**Message sent by {user_link.mention} deleted in {message.cached_message.jump_url}**\n{message.cached_message.content}",
                                          color = deletion_color,
                                          timestamp = timestamp)
-                if message.cached_message.author.avatar:
-                    embedVar.set_author(name = message.cached_message.author,
+            if message.cached_message.author.avatar:
+                embedVar.set_author(name = message.cached_message.author,
                                         icon_url = message.cached_message.author.avatar.url)
-                embedVar.set_footer(text = f"Author: {message.cached_message.author} | ID: {message.cached_message.author.id}")
+            embedVar.set_footer(text = f"Author: {message.cached_message.author} | ID: {message.cached_message.author.id}")
 
-                i = 1
-                num_attachments = len(message.cached_message.attachments)
-                for attachment in message.cached_message.attachments:
-                    if attachment.content_type in ("image/png", "image/jpeg", "image/webp", "image/gif", "video/mov", "video/mp4", "video/mpeg", "audio/mpeg", "audio/wav"):
-                        try:
-                             attach.append(await attachment.to_file(use_cached=True))
-                        except BaseException as failure:
-                            note = f"Unable to save attachment of type `{attachment.content_type}`, filename: **{attachment.filename}**"
-                            embedVar.add_field(name = f"Attachment {i}/{num_attachments}:", value = note, inline = False)
-                    else:
-                        note = f"Unable to save attachment of unsupported type `{attachment.content_type}`, filename: **{attachment.filename}**"
+            i = 1
+            num_attachments = len(message.cached_message.attachments)
+            for attachment in message.cached_message.attachments:
+                if attachment.content_type in ("image/png", "image/jpeg", "image/webp", "image/gif", "video/mov", "video/mp4", "video/mpeg", "audio/mpeg", "audio/wav"):
+                    try:
+                        attach.append(await attachment.to_file(use_cached=True))
+                    except BaseException as failure:
+                        note = f"Unable to save attachment of type `{attachment.content_type}`, filename: **{attachment.filename}**"
                         embedVar.add_field(name = f"Attachment {i}/{num_attachments}:", value = note, inline = False)
-                    i += 1
+                else:
+                    note = f"Unable to save attachment of unsupported type `{attachment.content_type}`, filename: **{attachment.filename}**"
+                    embedVar.add_field(name = f"Attachment {i}/{num_attachments}:", value = note, inline = False)
+                i += 1
 
-
-            else:
-                note = "Message not cached, unable to display content."
-                channel = bot.get_channel(message.channel_id)
-                embedVar = discord.Embed(title = None,
+        else:
+            note = "Message not cached, unable to display content."
+            channel = bot.get_channel(message.channel_id)
+            embedVar = discord.Embed(title = None,
                                          description = f"**Uncached message deleted in {channel.jump_url}**\n{note}",
                                          color = deletion_color,
                                          timestamp = timestamp)
-                embedVar.set_footer(text = f"Message ID: {message.message_id}")
+            embedVar.set_footer(text = f"Message ID: {message.message_id}")
 
-            await log_channel.send(embed = embedVar, files=attach)
+        await log_channel.send(embed = embedVar, files=attach)
     except BaseException as e:
         note = "**Error occurred when logging deleted message**\n"
         embedVar = discord.Embed(title=None,
@@ -183,25 +182,26 @@ async def on_raw_message_edit(message: discord.RawMessageUpdateEvent):
     edit_color = discord.Color.from_rgb(51, 127, 213)
     timestamp = datetime.datetime.now()
     log_channel = bot.get_channel(int(config[os.getenv('YUPIL_ENV')]['log_channel']))
-
     try:
-        if message.channel_id != int(config[os.getenv('YUPIL_ENV')]['log_channel']) and message.channel_id != int(config[os.getenv('YUPIL_ENV')]['ignore_mod_logs_id']):
-            if message.cached_message:
-                user_link = await bot.fetch_user(message.cached_message.author.id)
-                embedVar = discord.Embed(title = None,
+        if message.cached_message:
+            new_message = await bot.get_channel(message.channel_id).fetch_message(message.data.get('id'))
+            before = message.cached_message.content
+            after = new_message.content
+            if before == after or message.cached_message.author.bot:
+                return
+            user_link = await bot.fetch_user(message.cached_message.author.id)
+            embedVar = discord.Embed(title = None,
                                          description = f"**Message sent by {user_link.mention} edited in {message.cached_message.jump_url}**",
                                          color = edit_color,
                                          timestamp = timestamp)
-                if message.cached_message.author.avatar:
-                    embedVar.set_author(name = message.cached_message.author,
+            if message.cached_message.author.avatar:
+                embedVar.set_author(name = message.cached_message.author,
                                         icon_url = message.cached_message.author.avatar.url)
-                embedVar.set_footer(text = f"Author: {message.cached_message.author} | ID: {message.cached_message.author.id}")
-                embedVar.add_field(name = "Before:", value = message.cached_message.content, inline = False)
-                new_message = await bot.get_channel(message.channel_id).fetch_message(message.data.get('id'))
-                #embedVar.add_field(name = "After:", value = message.data.get("content"), inline = False)
-                embedVar.add_field(name="After:", value=new_message.content, inline=False)
+            embedVar.set_footer(text = f"Author: {message.cached_message.author} | ID: {message.cached_message.author.id}")
+            embedVar.add_field(name = "Before:", value = before, inline = False)
+            embedVar.add_field(name = "After:", value = after, inline = False)
 
-            await log_channel.send(embed = embedVar)
+        await log_channel.send(embed = embedVar)
     except BaseException as e:
         note = "**Error occurred when logging edited message**\n"
         embedVar = discord.Embed(title=None,
@@ -222,4 +222,3 @@ async def on_ready():
 # Bot login
 token = os.getenv('DISCORD_TOKEN')
 bot.run(token)
-
