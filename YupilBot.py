@@ -131,7 +131,7 @@ async def on_raw_message_delete(message: discord.RawMessageDeleteEvent):
     attach = []
 
     try:
-        if message.channel_id != int(config[os.getenv('YUPIL_ENV')]['log_channel']):
+        if message.channel_id != int(config[os.getenv('YUPIL_ENV')]['log_channel']) and message.channel_id != int(config[os.getenv('YUPIL_ENV')]['ignore_mod_logs_id']):
             if message.cached_message:
                 user_link = await bot.fetch_user(message.cached_message.author.id)
                 embedVar = discord.Embed(title = None,
@@ -183,21 +183,25 @@ async def on_raw_message_edit(message: discord.RawMessageUpdateEvent):
     edit_color = discord.Color.from_rgb(51, 127, 213)
     timestamp = datetime.datetime.now()
     log_channel = bot.get_channel(int(config[os.getenv('YUPIL_ENV')]['log_channel']))
-    try:
-        if message.cached_message:
-            user_link = await bot.fetch_user(message.cached_message.author.id)
-            embedVar = discord.Embed(title = None,
-                                     description = f"**Message sent by {user_link.mention} edited in {message.cached_message.jump_url}**",
-                                     color = edit_color,
-                                     timestamp = timestamp)
-            if message.cached_message.author.avatar:
-                embedVar.set_author(name = message.cached_message.author,
-                                    icon_url = message.cached_message.author.avatar.url)
-            embedVar.set_footer(text = f"Author: {message.cached_message.author} | ID: {message.cached_message.author.id}")
-            embedVar.add_field(name = "Before:", value = message.cached_message.content, inline = False)
-            embedVar.add_field(name = "After:", value = message.data.get("content"), inline = False)
 
-        await log_channel.send(embed = embedVar)
+    try:
+        if message.channel_id != int(config[os.getenv('YUPIL_ENV')]['log_channel']) and message.channel_id != int(config[os.getenv('YUPIL_ENV')]['ignore_mod_logs_id']):
+            if message.cached_message:
+                user_link = await bot.fetch_user(message.cached_message.author.id)
+                embedVar = discord.Embed(title = None,
+                                         description = f"**Message sent by {user_link.mention} edited in {message.cached_message.jump_url}**",
+                                         color = edit_color,
+                                         timestamp = timestamp)
+                if message.cached_message.author.avatar:
+                    embedVar.set_author(name = message.cached_message.author,
+                                        icon_url = message.cached_message.author.avatar.url)
+                embedVar.set_footer(text = f"Author: {message.cached_message.author} | ID: {message.cached_message.author.id}")
+                embedVar.add_field(name = "Before:", value = message.cached_message.content, inline = False)
+                new_message = await bot.get_channel(message.channel_id).fetch_message(message.data.get('id'))
+                #embedVar.add_field(name = "After:", value = message.data.get("content"), inline = False)
+                embedVar.add_field(name="After:", value=new_message.content, inline=False)
+
+            await log_channel.send(embed = embedVar)
     except BaseException as e:
         note = "**Error occurred when logging edited message**\n"
         embedVar = discord.Embed(title=None,
