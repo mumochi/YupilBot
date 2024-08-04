@@ -1,6 +1,5 @@
 import sys
 import time
-
 import discord
 from discord import app_commands as ac
 from discord.ext import commands
@@ -9,6 +8,7 @@ import configparser
 import os
 from dotenv import load_dotenv
 import datetime
+import re
 
 if os.getenv('YUPIL_ENV') != "prod":
     load_dotenv(".env.local")
@@ -141,6 +141,56 @@ async def translate(ctx, text: str):
     """Translates text to English (EN-US) using the DeepL API."""
     tr_text = translator.translate_text(text, target_lang = "EN-US")
     await ctx.response.send_message(f"{text} -> " + str(tr_text) + " (EN-US)")
+
+# Remove messages with references to commissions in the embeds (e.g., art account promotion)
+@bot.event
+async def on_message(message: discord.Message):
+    time.sleep(2) # Need to allow time for the embed to process on Discord's side
+    block_list = ["comm", "commission", "commision", "comission", "comision", "comisión"]
+    permit_list = ["comma", "comme", "commo", "commu"]
+    # Skip message if sent by a bot or doesn't contain an embed
+    art_channel = bot.get_channel(int(config[os.getenv('YUPIL_ENV')]['art_channel']))
+    if message.channel.id != art_channel.id or message.author.bot or len(message.embeds) == 0:
+        return
+    else:
+        remove = False
+        # For each embed, search for blocked terms and compare against permitted terms
+        # If number blocked > number permitted hits detected, flag message for removal
+        # Won't detect edge cases where both blocked > 1 and blocked == permitted
+        for embed in message.embeds:
+            num_blocked_title = 0
+            num_blocked_description = 0
+            for word in block_list:
+                block_word = re.compile(f".*?{word}.*?")
+                num_blocked_title += len(block_word.findall(embed.title.lower()))
+                num_blocked_description += len(block_word.findall(embed.description.lower()))
+            if num_blocked_title > 0:
+                num_permitted_title = 0
+                for pword in permit_list:
+                    permit_word = re.compile(f".*?{pword}.*?")
+                    num_permitted_title += len(permit_word.findall(embed.title.lower()))
+                if num_blocked_title > num_permitted_title:
+                    remove = True
+            if num_blocked_description > 0:
+                num_permitted_description = 0
+                for pword in permit_list:
+                    permit_word = re.compile(f".*?{pword}.*?")
+                    num_permitted_description += len(permit_word.findall(embed.description.lower()))
+                if num_blocked_description > num_permitted_description:
+                    remove = True
+    if remove:
+        guild = await bot.fetch_guild(server_id)
+        message_color = discord.Color.from_rgb(0, 255, 255)
+        send_embed = discord.Embed(title = "AutoMod: Blocked Message",
+                                   description = f"Hello {message.author.mention},\n\nWe've detected that you've sent a message that may include references to commissions. **Promotion is not allowed here**, so your message has been automatically deleted. Please review the server rules and feel free to resubmit art as images rather than social links.\n\nIf you believe this message was sent to you in error, please create a ticket using our ticket system.\n\nThank you.",
+                                   color = message_color)
+        send_embed.set_footer(text = "This is an automated message. We are unable to see or respond to further DMs.")
+        send_embed.set_author(name = guild.name,
+                              icon_url = guild.icon)
+        
+        await message.author.send(embed = send_embed)
+        await message.delete()
+
 
 @bot.event
 async def on_raw_message_delete(message: discord.RawMessageDeleteEvent):
