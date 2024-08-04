@@ -29,6 +29,7 @@ tree = bot.tree
 
 # Set channels
 art_channel = int(config[os.getenv('YUPIL_ENV')]['art_channel'])
+welcome_channel = int(config[os.getenv('YUPIL_ENV')]['welcome_channel'])
 
 # Set embed colors
 yupil_color = discord.Color.from_rgb(0, 255, 255)
@@ -193,6 +194,8 @@ async def translate(ctx, text: str):
 async def on_message(message: discord.Message):
     if message.channel.id == art_channel:
         await check_art_promo(message = message)
+    elif message.channel.id == welcome_channel:
+        await remove_duplicate_welcomes(message = message)
     else:
         return
 
@@ -246,6 +249,15 @@ async def check_art_promo(message: discord.Message):
         await message.author.send(embed = send_embed)
         await log_channel.send(f"DM sent to {message.author.display_name}", embed = send_embed)
         await message.delete()
+
+# Remove duplicate welcome messages
+async def remove_duplicate_welcomes(message: discord.Message):
+    if "just boosted the server!" in message.content:
+        return
+    else:
+        async for m in message.channel.history(limit = 5):
+            if m.author == message.author and m.id != message.id and ("just boosted the server!" not in m.content):
+                await m.delete()
 
 
 @bot.event
