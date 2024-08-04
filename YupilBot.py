@@ -143,7 +143,8 @@ async def translate(ctx, text: str):
     tr_text = translator.translate_text(text, target_lang = "EN-US")
     await ctx.response.send_message(f"{text} -> " + str(tr_text) + " (EN-US)")
 
-# Remove messages with references to commissions in the embeds (e.g., art account promotion)
+
+
 @bot.event
 async def on_message(message: discord.Message):
     if message.channel.id == art_channel:
