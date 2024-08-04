@@ -27,7 +27,13 @@ intents.members = True
 bot = commands.Bot(command_prefix = '/', intents = intents, max_messages = int(config[os.getenv('YUPIL_ENV')]['cache_size']))
 tree = bot.tree
 
+# Set channels
 art_channel = int(config[os.getenv('YUPIL_ENV')]['art_channel'])
+
+# Set embed colors
+yupil_color = discord.Color.from_rgb(0, 255, 255)
+deletion_color = discord.Color.from_rgb(255, 71, 15)
+edit_color = discord.Color.from_rgb(51, 127, 213)
 
 # DeepL authentication
 auth_key = os.getenv('DEEPL_API_TOKEN')
@@ -46,12 +52,40 @@ except:
 @ac.checks.has_role(permitted_role)
 @ac.describe(
     chat_message = "Message to send to text channel",
-    channel = "Channel to send the message to"
+    channel = "Channel to send the message to",
+    as_reply = "Message ID to reply to",
+    as_embed = "Send the message as an embed",
+    embed_title = "Title for embed",
+    image_url = "Image URL for embed",
+    embed_url = "URL for embed"
 )
-async def chat(ctx, chat_message: str, channel: discord.TextChannel):
+async def chat(ctx, chat_message: str, channel: discord.TextChannel, as_reply: str = None,
+               as_embed: bool = False, embed_title: str = None, image_url: str = None, embed_url: str = None):
     """Sends a chat message to the indicated text channel."""
-    await channel.send(chat_message)
-    await ctx.response.send_message(f"Message sent to {channel}", delete_after = 1)
+    if as_embed:
+        chat_embed = discord.Embed(title = embed_title,
+                                 description = chat_message,
+                                 color = yupil_color,
+                                 url = embed_url)
+        chat_embed.set_image(url = image_url)
+        if as_reply != None:
+            try:
+                as_reply = await channel.fetch_message(int(as_reply))
+                await channel.send(embed = chat_embed, allowed_mentions = discord.AllowedMentions.none(), reference = as_reply)
+            except:
+                await ctx.response.send_message("Message to reply to not found. Please make sure this is a message ID.", ephemeral = True)
+        else:
+            await channel.send(embed = chat_embed)
+    else:
+        if as_reply != None:
+            try:
+                as_reply = await channel.fetch_message(int(as_reply))
+                await channel.send(chat_message, allowed_mentions = discord.AllowedMentions.none(), reference = as_reply)
+            except:
+                await ctx.response.send_message("Message to reply to not found. Check that this is a message ID.", ephemeral = True)
+        else:    
+            await channel.send(chat_message)
+    await ctx.response.send_message(f"Message sent to {channel.jump_url}", ephemeral = True)
 
 @tree.command(
         name = "kill_me",
@@ -82,8 +116,17 @@ async def kill_me(ctx: discord.ext.commands.Context, reason: str):
 )
 async def dm(ctx, dm_message: str, user: discord.User):
     """Sends a DM to the indicated user."""
-    await user.send(dm_message)
-    await ctx.response.send_message(f"DM sent to {user.id}: " + dm_message)
+    log_channel = bot.get_channel(int(config[os.getenv('YUPIL_ENV')]['log_channel']))
+    guild = await bot.fetch_guild(server_id)
+    dm_embed = discord.Embed(title = "Mod Team Message",
+                               description = f"Hello {user.mention},\n\n{dm_message}\n\nIf you would like to reach out to the Mod Team, please create a ticket using our ticket system.",
+                               color = yupil_color)
+    dm_embed.set_footer(text = "This is a Yupil Bot message. The Mod Team is unable to see or respond to further DMs.")
+    dm_embed.set_author(name = guild.name,
+                        icon_url = guild.icon)
+    await user.send(embed = dm_embed)
+    message_log = await log_channel.send(f"DM sent to {user.display_name}:", embed = dm_embed)
+    await ctx.response.send_message(f"DM sent {message_log.jump_url}", ephemeral = True)
 
 # Restrict command: bot restricts user permissions to view server channels
 @tree.command(
@@ -144,12 +187,10 @@ async def translate(ctx, text: str):
     tr_text = translator.translate_text(text, target_lang = "EN-US")
     await ctx.response.send_message(f"{text} -> " + str(tr_text) + " (EN-US)")
 
-
-
 @bot.event
 async def on_message(message: discord.Message):
     if message.channel.id == art_channel:
-        await check_art_promo(message=message)
+        await check_art_promo(message = message)
     else:
         return
 
@@ -162,7 +203,7 @@ async def check_art_promo(message: discord.Message):
     # Skip message if sent by a bot or doesn't contain an embed or sent by a mod
     if (message.author.bot or
         len(message.embeds) == 0 or
-        discord.utils.get(message.guild.roles, name=permitted_role) in message.author.roles):
+        discord.utils.get(message.guild.roles, name = permitted_role) in message.author.roles):
         return
     else:
         remove = False
@@ -192,21 +233,19 @@ async def check_art_promo(message: discord.Message):
                     remove = True
     if remove:
         guild = await bot.fetch_guild(server_id)
-        message_color = discord.Color.from_rgb(0, 255, 255)
         send_embed = discord.Embed(title="AutoMod: Blocked Message",
-                                   description=f"Hello {message.author.mention},\n\nWe've detected that you've sent a message that may include references to commissions. **Promotion is not allowed here**, so your message has been automatically deleted. Please review the server rules and feel free to resubmit art as images rather than social links.\n\nIf you believe this message was sent to you in error, please create a ticket using our ticket system.\n\nThank you.",
-                                   color=message_color)
-        send_embed.set_footer(text="This is an automated message. We are unable to see or respond to further DMs.")
-        send_embed.set_author(name=guild.name,
-                              icon_url=guild.icon)
+                                   description=f"Hello {message.author.mention},\n\nYou've sent a message that may include references to art commissions. This is a gentle reminder that promotion isn't allowed here, so your message has been automatically deleted. Please feel free to resubmit art as images rather than social links or ensure removal of any commission references.\n\nIf you believe this message was sent to you in error, please create a ticket using our ticket system.\n\nThank you.",
+                                   color = yupil_color)
+        send_embed.set_footer(text = "This is an automated message. We are unable to see or respond to further DMs.")
+        send_embed.set_author(name = guild.name,
+                              icon_url = guild.icon)
 
-        await message.author.send(embed=send_embed)
+        await message.author.send(embed = send_embed)
         await message.delete()
 
 
 @bot.event
 async def on_raw_message_delete(message: discord.RawMessageDeleteEvent):
-    deletion_color = discord.Color.from_rgb(255, 71, 15)
     timestamp = datetime.datetime.now()
     log_channel = bot.get_channel(int(config[os.getenv('YUPIL_ENV')]['log_channel']))
     attach = []
@@ -260,7 +299,6 @@ async def on_raw_message_delete(message: discord.RawMessageDeleteEvent):
 
 @bot.event
 async def on_raw_message_edit(message: discord.RawMessageUpdateEvent):
-    edit_color = discord.Color.from_rgb(51, 127, 213)
     timestamp = datetime.datetime.now()
     log_channel = bot.get_channel(int(config[os.getenv('YUPIL_ENV')]['log_channel']))
     try:
