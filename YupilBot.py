@@ -62,6 +62,7 @@ except:
 async def chat(ctx, chat_message: str, channel: discord.TextChannel, as_reply: str = None,
                as_embed: bool = False, embed_title: str = None, image_url: str = None, embed_url: str = None):
     """Sends a chat message to the indicated text channel."""
+    chat_message = chat_message.replace(r'\n', '\n')
     if as_embed:
         chat_embed = discord.Embed(title = embed_title,
                                  description = chat_message,
@@ -116,6 +117,7 @@ async def kill_me(ctx: discord.ext.commands.Context, reason: str):
 )
 async def dm(ctx, dm_message: str, user: discord.User):
     """Sends a DM to the indicated user."""
+    dm_message = dm_message.replace(r'\n', '\n')
     log_channel = bot.get_channel(int(config[os.getenv('YUPIL_ENV')]['log_channel']))
     guild = await bot.fetch_guild(server_id)
     dm_embed = discord.Embed(title = "Mod Team Message",
