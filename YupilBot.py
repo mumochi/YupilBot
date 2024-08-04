@@ -198,6 +198,7 @@ async def on_message(message: discord.Message):
 # Remove messages with references to commissions in the embeds (e.g., art account promotion)
 async def check_art_promo(message: discord.Message):
     time.sleep(2)  # Need to allow time for the embed to process on Discord's side
+    log_channel = bot.get_channel(int(config[os.getenv('YUPIL_ENV')]['log_channel']))
     block_list = ["comm", "commission", "commision", "comission", "comision", "comisión"]
     permit_list = ["comma", "comme", "commo", "commu"]
     # Skip message if sent by a bot or doesn't contain an embed or sent by a mod
@@ -241,6 +242,7 @@ async def check_art_promo(message: discord.Message):
                               icon_url = guild.icon)
 
         await message.author.send(embed = send_embed)
+        await log_channel.send(f"DM sent to {message.author.display_name}", embed = send_embed)
         await message.delete()
 
 
