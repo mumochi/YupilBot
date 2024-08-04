@@ -26,6 +26,7 @@ intents.message_content = True
 intents.members = True
 bot = commands.Bot(command_prefix = '/', intents = intents, max_messages = int(config[os.getenv('YUPIL_ENV')]['cache_size']))
 tree = bot.tree
+art_channel = int(config[os.getenv('YUPIL_ENV')]['art_channel'])
 
 # DeepL authentication
 auth_key = os.getenv('DEEPL_API_TOKEN')
@@ -145,12 +146,21 @@ async def translate(ctx, text: str):
 # Remove messages with references to commissions in the embeds (e.g., art account promotion)
 @bot.event
 async def on_message(message: discord.Message):
-    time.sleep(2) # Need to allow time for the embed to process on Discord's side
+    if message.channel.id == art_channel:
+        await check_art_promo(message=message)
+    else:
+        return
+
+
+# Remove messages with references to commissions in the embeds (e.g., art account promotion)
+async def check_art_promo(message: discord.Message):
+    time.sleep(2)  # Need to allow time for the embed to process on Discord's side
     block_list = ["comm", "commission", "commision", "comission", "comision", "comisión"]
     permit_list = ["comma", "comme", "commo", "commu"]
-    # Skip message if sent by a bot or doesn't contain an embed
-    art_channel = bot.get_channel(int(config[os.getenv('YUPIL_ENV')]['art_channel']))
-    if message.channel.id != art_channel.id or message.author.bot or len(message.embeds) == 0:
+    # Skip message if sent by a bot or doesn't contain an embed or sent by a mod
+    if (message.author.bot or
+        len(message.embeds) == 0 or
+        discord.utils.get(discord.Guild.roles, config[os.getenv('YUPIL_ENV')]['permitted_role']) in message.author.roles):
         return
     else:
         remove = False
