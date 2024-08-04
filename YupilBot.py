@@ -26,6 +26,7 @@ intents.message_content = True
 intents.members = True
 bot = commands.Bot(command_prefix = '/', intents = intents, max_messages = int(config[os.getenv('YUPIL_ENV')]['cache_size']))
 tree = bot.tree
+
 art_channel = int(config[os.getenv('YUPIL_ENV')]['art_channel'])
 
 # DeepL authentication
@@ -161,7 +162,7 @@ async def check_art_promo(message: discord.Message):
     # Skip message if sent by a bot or doesn't contain an embed or sent by a mod
     if (message.author.bot or
         len(message.embeds) == 0 or
-        discord.utils.get(discord.Guild.roles, config[os.getenv('YUPIL_ENV')]['permitted_role']) in message.author.roles):
+        discord.utils.get(message.guild.roles, name=permitted_role) in message.author.roles):
         return
     else:
         remove = False
@@ -192,14 +193,14 @@ async def check_art_promo(message: discord.Message):
     if remove:
         guild = await bot.fetch_guild(server_id)
         message_color = discord.Color.from_rgb(0, 255, 255)
-        send_embed = discord.Embed(title = "AutoMod: Blocked Message",
-                                   description = f"Hello {message.author.mention},\n\nWe've detected that you've sent a message that may include references to commissions. **Promotion is not allowed here**, so your message has been automatically deleted. Please review the server rules and feel free to resubmit art as images rather than social links.\n\nIf you believe this message was sent to you in error, please create a ticket using our ticket system.\n\nThank you.",
-                                   color = message_color)
-        send_embed.set_footer(text = "This is an automated message. We are unable to see or respond to further DMs.")
-        send_embed.set_author(name = guild.name,
-                              icon_url = guild.icon)
-        
-        await message.author.send(embed = send_embed)
+        send_embed = discord.Embed(title="AutoMod: Blocked Message",
+                                   description=f"Hello {message.author.mention},\n\nWe've detected that you've sent a message that may include references to commissions. **Promotion is not allowed here**, so your message has been automatically deleted. Please review the server rules and feel free to resubmit art as images rather than social links.\n\nIf you believe this message was sent to you in error, please create a ticket using our ticket system.\n\nThank you.",
+                                   color=message_color)
+        send_embed.set_footer(text="This is an automated message. We are unable to see or respond to further DMs.")
+        send_embed.set_author(name=guild.name,
+                              icon_url=guild.icon)
+
+        await message.author.send(embed=send_embed)
         await message.delete()
 
 
