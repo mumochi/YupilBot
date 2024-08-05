@@ -28,7 +28,6 @@ bot = commands.Bot(command_prefix = '/', intents = intents, max_messages = int(c
 tree = bot.tree
 
 # Set channels
-art_channel = int(config[os.getenv('YUPIL_ENV')]['art_channel'])
 welcome_channel = int(config[os.getenv('YUPIL_ENV')]['welcome_channel'])
 
 # Set embed colors
@@ -58,10 +57,11 @@ except:
     as_embed = "Send the message as an embed",
     embed_title = "Title for embed",
     image_url = "Image URL for embed",
-    embed_url = "URL for embed"
+    embed_url = "URL for embed",
+    embed_footer = "Footer for embed"
 )
 async def chat(ctx, chat_message: str, channel: discord.TextChannel, as_reply: str = None,
-               as_embed: bool = False, embed_title: str = None, image_url: str = None, embed_url: str = None):
+               as_embed: bool = False, embed_title: str = None, image_url: str = None, embed_url: str = None, embed_footer: str = None):
     """Sends a chat message to the indicated text channel."""
     chat_message = chat_message.replace(r'\n', '\n')
     if as_embed:
@@ -70,6 +70,7 @@ async def chat(ctx, chat_message: str, channel: discord.TextChannel, as_reply: s
                                  color = yupil_color,
                                  url = embed_url)
         chat_embed.set_image(url = image_url)
+        chat_embed.set_footer(text = embed_footer)
         if as_reply != None:
             try:
                 as_reply = await channel.fetch_message(int(as_reply))
@@ -143,6 +144,9 @@ async def dm(ctx, dm_message: str, user: discord.User):
 )
 async def restrict(ctx, user: discord.User):
     """Restricts a user."""
+    timestamp = datetime.datetime.now()
+    log_channel = bot.get_channel(int(config[os.getenv('YUPIL_ENV')]['log_channel']))
+
     for channel in ctx.guild.text_channels:
         perms = channel.overwrites_for(user)
         perms.read_messages = False
@@ -151,7 +155,15 @@ async def restrict(ctx, user: discord.User):
         perms_vc = vc.overwrites_for(user)
         perms_vc.view_channel = False
         await vc.set_permissions(user, overwrite = perms_vc)
-    await ctx.response.send_message(f"{user} restricted.")
+    
+    embed = discord.Embed(title = "Mod Action: Restrict",
+                          description = f"{user.mention} has been restricted.",
+                          color = discord.Color.red(), 
+                          timestamp = timestamp)
+    embed.set_author(name = user,
+                     icon_url = user.avatar.url)
+    await log_channel.send(embed = embed)
+    await ctx.response.send_message(f"{user.display_name} restricted.", ephemeral = True, delete_after = 2)
 
 # Unrestrict command: bot unrestricts user permissions to view server channels
 @tree.command(
@@ -165,15 +177,22 @@ async def restrict(ctx, user: discord.User):
 )
 async def unrestrict(ctx, user: discord.User):
     """Unrestricts a user."""
+    timestamp = datetime.datetime.now()
+    log_channel = bot.get_channel(int(config[os.getenv('YUPIL_ENV')]['log_channel']))
+
     for channel in ctx.guild.text_channels:
-        perms = channel.overwrites_for(user)
-        perms.read_messages = None
-        await channel.set_permissions(user, overwrite = perms)
+        await channel.set_permissions(user, overwrite = None)
     for vc in ctx.guild.voice_channels:
-        perms_vc = vc.overwrites_for(user)
-        perms_vc.view_channel = None
-        await vc.set_permissions(user, overwrite = perms_vc)
-    await ctx.response.send_message(f"{user} unrestricted.")
+        await vc.set_permissions(user, overwrite = None)
+
+    embed = discord.Embed(title = "Mod Action: Unrestrict",
+                          description = f"{user.mention} has been unrestricted.",
+                          color = discord.Color.green(), 
+                          timestamp = timestamp)
+    embed.set_author(name = user,
+                     icon_url = user.avatar.url)
+    await log_channel.send(embed = embed)
+    await ctx.response.send_message(f"{user.display_name} unrestricted.", ephemeral = True, delete_after = 2)
 
 # Translation command using DeepL API
 @tree.command(
@@ -192,63 +211,10 @@ async def translate(ctx, text: str):
 
 @bot.event
 async def on_message(message: discord.Message):
-    if message.channel.id == art_channel:
-        await check_art_promo(message = message)
-    elif message.channel.id == welcome_channel:
+    if message.channel.id == welcome_channel:
         await remove_duplicate_welcomes(message = message)
     else:
         return
-
-
-# Remove messages with references to commissions in the embeds (e.g., art account promotion)
-async def check_art_promo(message: discord.Message):
-    time.sleep(2)  # Need to allow time for the embed to process on Discord's side
-    log_channel = bot.get_channel(int(config[os.getenv('YUPIL_ENV')]['log_channel']))
-    block_list = ["comm", "commission", "commision", "comission", "comision", "comisión"]
-    permit_list = ["comma", "comme", "commo", "commu"]
-    # Skip message if sent by a bot or doesn't contain an embed or sent by a mod
-    if (message.author.bot or
-        len(message.embeds) == 0 or
-        discord.utils.get(message.guild.roles, name = permitted_role) in message.author.roles):
-        return
-    else:
-        remove = False
-        # For each embed, search for blocked terms and compare against permitted terms
-        # If number blocked > number permitted hits detected, flag message for removal
-        # Won't detect edge cases where both blocked > 1 and blocked == permitted
-        for embed in message.embeds:
-            num_blocked_title = 0
-            num_blocked_description = 0
-            for word in block_list:
-                block_word = re.compile(f".*?{word}.*?")
-                num_blocked_title += len(block_word.findall(embed.title.lower()))
-                num_blocked_description += len(block_word.findall(embed.description.lower()))
-            if num_blocked_title > 0:
-                num_permitted_title = 0
-                for pword in permit_list:
-                    permit_word = re.compile(f".*?{pword}.*?")
-                    num_permitted_title += len(permit_word.findall(embed.title.lower()))
-                if num_blocked_title > num_permitted_title:
-                    remove = True
-            if num_blocked_description > 0:
-                num_permitted_description = 0
-                for pword in permit_list:
-                    permit_word = re.compile(f".*?{pword}.*?")
-                    num_permitted_description += len(permit_word.findall(embed.description.lower()))
-                if num_blocked_description > num_permitted_description:
-                    remove = True
-    if remove:
-        guild = await bot.fetch_guild(server_id)
-        send_embed = discord.Embed(title="AutoMod: Blocked Message",
-                                   description=f"Hello {message.author.mention},\n\nYou've sent a message that may include references to art commissions. This is a gentle reminder that promotion isn't allowed here, so your message has been automatically deleted. Please feel free to resubmit art as images rather than social links or ensure removal of any commission references.\n\nIf you believe this message was sent to you in error, please create a ticket using our ticket system.\n\nThank you.",
-                                   color = yupil_color)
-        send_embed.set_footer(text = "This is an automated message. We are unable to see or respond to further DMs.")
-        send_embed.set_author(name = guild.name,
-                              icon_url = guild.icon)
-
-        await message.author.send(embed = send_embed)
-        await log_channel.send(f"DM sent to {message.author.display_name}", embed = send_embed)
-        await message.delete()
 
 # Remove duplicate welcome messages
 async def remove_duplicate_welcomes(message: discord.Message):
@@ -269,9 +235,9 @@ async def on_raw_message_delete(message: discord.RawMessageDeleteEvent):
         if message.cached_message:
             if message.cached_message.author.bot:
                 return
-            user_link = await bot.fetch_user(message.cached_message.author.id)
+            user_link = message.cached_message.author.mention
             embedVar = discord.Embed(title = None,
-                                         description = f"**Message sent by {user_link.mention} deleted in {message.cached_message.jump_url}**\n{message.cached_message.content}",
+                                         description = f"**Message sent by {user_link} deleted in {message.cached_message.jump_url}**\n{message.cached_message.content}",
                                          color = deletion_color,
                                          timestamp = timestamp)
             if message.cached_message.author.avatar:
@@ -324,9 +290,9 @@ async def on_raw_message_edit(message: discord.RawMessageUpdateEvent):
             after = new_message.content
             if before == after or message.cached_message.author.bot:
                 return
-            user_link = await bot.fetch_user(message.cached_message.author.id)
+            user_link = message.cached_message.author.mention
             embedVar = discord.Embed(title = None,
-                                         description = f"**Message sent by {user_link.mention} edited in {message.cached_message.jump_url}**",
+                                         description = f"**Message sent by {user_link} edited in {message.cached_message.jump_url}**",
                                          color = edit_color,
                                          timestamp = timestamp)
             if message.cached_message.author.avatar:
