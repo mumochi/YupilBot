@@ -160,8 +160,11 @@ async def restrict(ctx, user: discord.User):
                           description = f"{user.mention} has been restricted.",
                           color = discord.Color.red(), 
                           timestamp = timestamp)
+    user_avatar = None
+    if user.avatar != None:
+        user_avatar = user.avatar.url
     embed.set_author(name = user,
-                     icon_url = user.avatar.url)
+                     icon_url = user_avatar)
     await log_channel.send(embed = embed)
     await ctx.response.send_message(f"{user.display_name} restricted.", ephemeral = True, delete_after = 2)
 
@@ -189,8 +192,11 @@ async def unrestrict(ctx, user: discord.User):
                           description = f"{user.mention} has been unrestricted.",
                           color = discord.Color.green(), 
                           timestamp = timestamp)
+    user_avatar = None
+    if user.avatar != None:
+        user_avatar = user.avatar.url
     embed.set_author(name = user,
-                     icon_url = user.avatar.url)
+                     icon_url = user_avatar)
     await log_channel.send(embed = embed)
     await ctx.response.send_message(f"{user.display_name} unrestricted.", ephemeral = True, delete_after = 2)
 
