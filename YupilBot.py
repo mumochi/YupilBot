@@ -1,5 +1,4 @@
 import sys
-import time
 import discord
 from discord import app_commands as ac
 from discord.ext import commands
@@ -8,8 +7,8 @@ import configparser
 import os
 from dotenv import load_dotenv
 import datetime
-import re
 
+# Set environment and read config file
 if os.getenv('YUPIL_ENV') != "prod":
     load_dotenv(".env.local")
 else:
@@ -17,10 +16,10 @@ else:
 config = configparser.ConfigParser()
 config.read('config.ini')
 
-
 server_id = os.getenv('DISCORD_SERVER_ID')  # Server ID
 permitted_role = config[os.getenv('YUPIL_ENV')]['permitted_role']  # Only users with this role can use the commands
 
+# Set bot intents and bot configuration
 intents = discord.Intents.default() 
 intents.message_content = True
 intents.members = True
@@ -146,6 +145,7 @@ async def restrict(ctx, user: discord.User):
     """Restricts a user."""
     timestamp = datetime.datetime.now()
     log_channel = bot.get_channel(int(config[os.getenv('YUPIL_ENV')]['log_channel']))
+    await ctx.response.send_message(f"Restricting {user.display_name}. This may take some time.", ephemeral = True)
 
     for channel in ctx.guild.text_channels:
         perms = channel.overwrites_for(user)
@@ -166,7 +166,7 @@ async def restrict(ctx, user: discord.User):
     embed.set_author(name = user,
                      icon_url = user_avatar)
     await log_channel.send(embed = embed)
-    await ctx.response.send_message(f"{user.display_name} restricted.", ephemeral = True, delete_after = 2)
+    await ctx.delete_original_response()
 
 # Unrestrict command: bot unrestricts user permissions to view server channels
 @tree.command(
@@ -182,6 +182,7 @@ async def unrestrict(ctx, user: discord.User):
     """Unrestricts a user."""
     timestamp = datetime.datetime.now()
     log_channel = bot.get_channel(int(config[os.getenv('YUPIL_ENV')]['log_channel']))
+    await ctx.response.send_message(f"Unrestricting {user.display_name}. This may take some time.", ephemeral = True)
 
     for channel in ctx.guild.text_channels:
         await channel.set_permissions(user, overwrite = None)
@@ -198,7 +199,7 @@ async def unrestrict(ctx, user: discord.User):
     embed.set_author(name = user,
                      icon_url = user_avatar)
     await log_channel.send(embed = embed)
-    await ctx.response.send_message(f"{user.display_name} unrestricted.", ephemeral = True, delete_after = 2)
+    await ctx.delete_original_response()
 
 # Translation command using DeepL API
 @tree.command(
