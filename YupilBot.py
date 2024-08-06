@@ -353,7 +353,7 @@ class ModModal(discord.ui.Modal):
 
         # Send Yupil Bot and user message input embeds; include close button
         mod_embed = discord.Embed(title = "Automated Message",
-                                  description = "A member of the Mod Team will respond when they're available.\n\nThank you for your patience!",
+                                  description = "A member of the Mod Team will respond when they're available. If you have other information to add to your ticket, such as screenshots or other images, feel free to send them now.\n\nThank you for your patience!",
                                   color = yupil_color)
         mod_embed.set_author(name = bot.user.display_name,
                              icon_url = bot.user.avatar.url)
@@ -397,7 +397,7 @@ class FinishButtons(discord.ui.View):
             await interaction.channel.delete()
         except:
             interaction.channel.send("Unable to save transcript.")
-            
+
     @discord.ui.button(label = "Delete Ticket (no transcript)",
                        style = discord.ButtonStyle.gray,
                        emoji = "⛔")
