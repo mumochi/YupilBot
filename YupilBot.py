@@ -7,6 +7,8 @@ import configparser
 import os
 from dotenv import load_dotenv
 import datetime
+import chat_exporter
+import io
 
 # Set environment and read config file
 if os.getenv('YUPIL_ENV') != "prod":
@@ -28,6 +30,7 @@ tree = bot.tree
 
 # Set channels
 welcome_channel = int(config[os.getenv('YUPIL_ENV')]['welcome_channel'])
+helpdesk_channel = int(config[os.getenv('YUPIL_ENV')]['helpdesk_channel'])
 
 # Set embed colors
 yupil_color = discord.Color.from_rgb(0, 255, 255)
@@ -129,9 +132,34 @@ async def dm(ctx, dm_message: str, user: discord.User):
                         icon_url = guild.icon)
     await user.send(embed = dm_embed)
     message_log = await log_channel.send(f"DM sent to {user.display_name}:", embed = dm_embed)
-    await ctx.response.send_message(f"DM sent {message_log.jump_url}", ephemeral = True)
+    await ctx.response.send_message(f"DM sent to {user.display_name}. View log: {message_log.jump_url}", ephemeral = True)
 
 # Restrict command: bot restricts user permissions to view server channels
+async def create_ticket(name: str, guild: discord.Guild):
+        """Creates a new channel"""
+        category = await bot.fetch_channel(helpdesk_channel)
+        # Set default parameters to view the channel for everyone off and on for the bot
+        overwrites = {
+        guild.default_role: discord.PermissionOverwrite(read_messages = False),
+        guild.me: discord.PermissionOverwrite(read_messages = True)
+        }
+        new_channel = await guild.create_text_channel(name = name,
+                                                              category = category,
+                                                              overwrites = overwrites)
+        return new_channel
+
+async def user_channels_off(user: discord.User, guild: discord.Guild):
+    """Sets all channel overrides to limit visibility for user"""
+    # Iteratively restrict access to every channel and VC
+    for channel in guild.text_channels:
+        perms = channel.overwrites_for(user)
+        perms.read_messages = False
+        await channel.set_permissions(user, overwrite = perms)
+    for vc in guild.voice_channels:
+        perms_vc = vc.overwrites_for(user)
+        perms_vc.view_channel = False
+        await vc.set_permissions(user, overwrite = perms_vc)
+
 @tree.command(
         name = "restrict",
         description = "Restricts a user.",
@@ -141,34 +169,79 @@ async def dm(ctx, dm_message: str, user: discord.User):
 @ac.describe(
     user = "User to restrict"
 )
-async def restrict(ctx, user: discord.User):
+async def restrict(ctx, user: discord.User, create_channel: bool = True, send_message: bool = False, custom_message: str = None):
     """Restricts a user."""
     timestamp = datetime.datetime.now()
     log_channel = bot.get_channel(int(config[os.getenv('YUPIL_ENV')]['log_channel']))
     await ctx.response.send_message(f"Restricting {user.display_name}. This may take some time.", ephemeral = True)
+    await user_channels_off(user = user, guild = ctx.guild)
 
-    for channel in ctx.guild.text_channels:
-        perms = channel.overwrites_for(user)
-        perms.read_messages = False
-        await channel.set_permissions(user, overwrite = perms)
-    for vc in ctx.guild.voice_channels:
-        perms_vc = vc.overwrites_for(user)
-        perms_vc.view_channel = False
-        await vc.set_permissions(user, overwrite = perms_vc)
-    
-    embed = discord.Embed(title = "Mod Action: Restrict",
+    # Create a new ticket channel and set permissions for both the restricted user and permitted users (mods)
+    if create_channel:
+        ticket_name = f"ticket-{user.display_name}"
+        new_channel = await create_ticket(name = ticket_name.lower(), guild = ctx.guild)
+        new_perms = new_channel.overwrites_for(user)
+        new_perms.read_messages = True
+        mod_role = discord.utils.get(ctx.guild.roles, name = permitted_role)
+        mod_perms = new_channel.overwrites_for(mod_role)
+        mod_perms.read_messages = True
+        mod_perms.manage_messages = True
+        await new_channel.set_permissions(user, overwrite = new_perms)
+        await new_channel.set_permissions(mod_role, overwrite = mod_perms)
+        
+        # Send a default or custom restriction embed message in the newly-created channel
+        if send_message:
+            mod_message = "We've identified unusual activity on your account. For this reason, we have temporarily restricted your account from viewing or posting in other channels.\n\nTo have this restriction removed, please send us a message here at your earliest convenience to confirm that this is not an automated bot account. Failure to respond to this message may result in your removal from the server.\n\nThank you for your patience and cooperation."
+            
+            if custom_message != None:
+                mod_message = custom_message.replace(r'\n', '\n')
+
+            message_embed = discord.Embed(description = mod_message,
+                                          color = yupil_color)
+            await new_channel.send(f"Hello, {user.mention}", embed = message_embed)
+
+    # Send a log of the mod action
+    log_embed = discord.Embed(title = "Mod Action: Restrict",
                           description = f"{user.mention} has been restricted.",
                           color = discord.Color.red(), 
                           timestamp = timestamp)
     user_avatar = None
     if user.avatar != None:
         user_avatar = user.avatar.url
-    embed.set_author(name = user,
+    log_embed.set_author(name = user,
                      icon_url = user_avatar)
-    await log_channel.send(embed = embed)
+    await log_channel.send(embed = log_embed)
     await ctx.delete_original_response()
 
 # Unrestrict command: bot unrestricts user permissions to view server channels
+async def user_channels_on(user: discord.User, guild: discord.Guild):
+    """Resets all user-specific channel overrides established by previous restriction"""
+    # Iteratively restore normal access to all channels and VCs
+    for channel in guild.text_channels:
+        await channel.set_permissions(user, overwrite = None)
+    for vc in guild.voice_channels:
+        await vc.set_permissions(user, overwrite = None)
+
+async def create_transcript(channel: discord.TextChannel):
+    """Creates two transcripts: one to send in the transcript channel and one to save locally for long-term archival"""
+    transcript_channel = bot.get_channel(int(config[os.getenv('YUPIL_ENV')]['transcript_channel']))
+    today = datetime.date.today()
+    today_format = f"{today.year}-{today.month}-{today.day}"
+    transcript = await chat_exporter.export(channel, tz_info = "US/Pacific")
+    filename = f"{today_format}-{channel.name}.html"
+    transcript_file = discord.File(io.BytesIO(transcript.encode()),
+                                   filename = filename)
+    transcript_message = await transcript_channel.send(file = transcript_file)
+    # If directory doesn't exist, create it
+    if not os.path.isdir("transcripts"):
+        os.mkdir("transcripts")
+    # If file already exists, rename rather than overwrite
+    i = 1
+    while os.path.isfile(f"transcripts/{filename}"):
+        filename = f"{today_format}-{channel.name}-{i}.html"
+        i += 1
+    await transcript_message.attachments[0].save(f"transcripts/{filename}")
+
 @tree.command(
         name = "unrestrict",
         description = "Unrestricts a user.",
@@ -178,17 +251,27 @@ async def restrict(ctx, user: discord.User):
 @ac.describe(
     user = "User to unrestrict"
 )
-async def unrestrict(ctx, user: discord.User):
+async def unrestrict(ctx, user: discord.User, delete_ticket: bool = False):
     """Unrestricts a user."""
     timestamp = datetime.datetime.now()
     log_channel = bot.get_channel(int(config[os.getenv('YUPIL_ENV')]['log_channel']))
     await ctx.response.send_message(f"Unrestricting {user.display_name}. This may take some time.", ephemeral = True)
+    await user_channels_on(user = user, guild = ctx.guild)
 
-    for channel in ctx.guild.text_channels:
-        await channel.set_permissions(user, overwrite = None)
-    for vc in ctx.guild.voice_channels:
-        await vc.set_permissions(user, overwrite = None)
+    # Search for and delete the ticket channel associated with the prior restriction
+    if delete_ticket:
+        try:
+            ticket_name = f"ticket-{user.display_name}"
+            ticket_channel = discord.utils.get(ctx.guild.channels, name = ticket_name.lower())
+            try:
+                await create_transcript(channel = ticket_channel)
+                await ticket_channel.delete()
+            except:
+                await ctx.channel.send(f"Unable to create transcript for {ticket_channel.name}.")
+        except:
+            await ctx.channel.send(f"Ticket channel {ticket_name} not found.")
 
+    # Send a log of the mod action
     embed = discord.Embed(title = "Mod Action: Unrestrict",
                           description = f"{user.mention} has been unrestricted.",
                           color = discord.Color.green(), 
