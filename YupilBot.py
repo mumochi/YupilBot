@@ -34,6 +34,7 @@ helpdesk_channel = int(config[os.getenv('YUPIL_ENV')]['helpdesk_channel'])
 
 # Set embed colors
 yupil_color = discord.Color.from_rgb(0, 255, 255)
+member_color = discord.Color.from_rgb(252, 192, 246)
 deletion_color = discord.Color.from_rgb(255, 71, 15)
 edit_color = discord.Color.from_rgb(51, 127, 213)
 
@@ -299,6 +300,146 @@ async def translate(ctx, text: str):
     tr_text = translator.translate_text(text, target_lang = "EN-US")
     await ctx.response.send_message(f"{text} -> " + str(tr_text) + " (EN-US)")
 
+# Define modal classes for interactive UI on button clicks
+class InfoModal(discord.ui.Modal):
+    answer = discord.ui.TextInput(label = "Please let us know how we can assist you.", 
+                                  style = discord.TextStyle.paragraph, 
+                                  placeholder = "Note: you will not be able to submit images for this ticket type.", 
+                                  required = True, min_length = 10)
+    
+    async def on_submit(ctx, interaction: discord.Interaction):
+        await interaction.response.send_message("Your ticket has been submitted. Thank you.", ephemeral = True)
+        # Create new ticket and set permissions
+        today = datetime.datetime.today()
+        ticket_name = f"{today.year}{'%02d' % today.month}{'%02d' % today.day}-{interaction.user.display_name}"
+        new_channel = await create_ticket(name = ticket_name.lower(), guild = interaction.guild)
+        mod_role = discord.utils.get(interaction.guild.roles, name = permitted_role)
+        mod_perms = new_channel.overwrites_for(mod_role)
+        mod_perms.read_messages = True
+        mod_perms.manage_messages = True
+        await new_channel.set_permissions(mod_role, overwrite = mod_perms)
+
+        # Send user input message and include close button
+        message_embed = discord.Embed(description = f"Ticket created by {interaction.user.mention}",
+                                      color = member_color)
+        user_avatar = None
+        if interaction.user.avatar != None:
+            user_avatar = interaction.user.avatar.url
+        message_embed.set_author(name = interaction.user.display_name,
+                                 icon_url = user_avatar)
+        message_embed.add_field(name = "Ticket message:", value = ctx.answer)
+        await new_channel.send(embed = message_embed, view = CloseButton(timeout = None))
+
+class ModModal(discord.ui.Modal):
+    answer = discord.ui.TextInput(label = "Please let us know how we can assist you.", 
+                                  style = discord.TextStyle.paragraph, 
+                                  placeholder = "After this initial message, you may submit supporting images.", 
+                                  required = True, min_length = 10)
+    
+    async def on_submit(ctx, interaction: discord.Interaction):
+        await interaction.response.send_message("Submitting ticket.", ephemeral = True, delete_after = 2)
+        # Create new ticket and set permissions
+        today = datetime.datetime.today()
+        ticket_name = f"{today.year}{'%02d' % today.month}{'%02d' % today.day}-{interaction.user.display_name}"
+        new_channel = await create_ticket(name = ticket_name.lower(), guild = interaction.guild)
+        new_perms = new_channel.overwrites_for(interaction.user)
+        new_perms.read_messages = True
+        mod_role = discord.utils.get(interaction.guild.roles, name = permitted_role)
+        mod_perms = new_channel.overwrites_for(mod_role)
+        mod_perms.read_messages = True
+        mod_perms.manage_messages = True
+        await new_channel.set_permissions(interaction.user, overwrite = new_perms)
+        await new_channel.set_permissions(mod_role, overwrite = mod_perms)
+
+        # Send Yupil Bot and user message input embeds; include close button
+        mod_embed = discord.Embed(title = "Automated Message",
+                                  description = "A member of the Mod Team will respond when they're available.\n\nThank you for your patience!",
+                                  color = yupil_color)
+        mod_embed.set_author(name = bot.user.display_name,
+                             icon_url = bot.user.avatar.url)
+        message_embed = discord.Embed(description = f"Ticket created by {interaction.user.mention}",
+                                      color = member_color)
+        user_avatar = None
+        if interaction.user.avatar != None:
+            user_avatar = interaction.user.avatar.url
+        message_embed.set_author(name = interaction.user.display_name,
+                                 icon_url = user_avatar)
+        message_embed.add_field(name = "Initial message:", value = ctx.answer)
+        await new_channel.send(f"Welcome, {interaction.user.mention}", embed = mod_embed, view = CloseButton(timeout = None))
+        await new_channel.send("\n", embed = message_embed)
+
+# Define button classes for interactive buttons
+class Buttons(discord.ui.View):
+    @discord.ui.button(label = "Info Ticket",
+                       style = discord.ButtonStyle.gray,
+                       custom_id = "info01",
+                       emoji = "📨")
+    
+    async def info_button(self, interaction: discord.Interaction, button: discord.ui.Button):
+        await interaction.response.send_modal(InfoModal(title = "Info Ticket"))
+
+    @discord.ui.button(label = "Mod Ticket",
+                        style = discord.ButtonStyle.gray,
+                        custom_id = "mod01",
+                        emoji = "💬")
+    
+    async def mod_button(self, interaction: discord.Interaction, button: discord.ui.Button):
+        await interaction.response.send_modal(ModModal(title = "Mod Ticket"))
+
+class FinishButtons(discord.ui.View):
+    @discord.ui.button(label = "Delete Ticket (with transcript)",
+                       style = discord.ButtonStyle.gray,
+                       emoji = "✅")
+    
+    async def delete_transcript_button(self, interaction: discord.Interaction, button: discord.ui.Button): 
+        try:
+            await create_transcript(channel = interaction.channel)
+            await interaction.channel.delete()
+        except:
+            interaction.channel.send("Unable to save transcript.")
+            
+    @discord.ui.button(label = "Delete Ticket (no transcript)",
+                       style = discord.ButtonStyle.gray,
+                       emoji = "⛔")
+    
+    async def delete_button(self, interaction: discord.Interaction, button: discord.ui.Button):
+        await interaction.channel.delete()
+
+
+
+class CloseButton(discord.ui.View):
+    @discord.ui.button(label = "Close Ticket",
+                       style = discord.ButtonStyle.gray,
+                       emoji = "🔒")
+    
+    async def close_button(self, interaction: discord.Interaction, button: discord.ui.Button):
+        overwrites = interaction.channel.overwrites
+        mod_role = discord.utils.get(interaction.guild.roles, name = permitted_role)
+        await interaction.response.send_message("Closing ticket.", ephemeral = True, delete_after = 1)
+        for key in overwrites:
+            if key not in [mod_role, bot.user, interaction.guild.default_role]:
+                await interaction.channel.set_permissions(key, overwrite = None)
+        await interaction.message.edit(view = FinishButtons(timeout = None))
+
+@tree.command(
+        name = "create_buttons",
+        description = "Creates buttons for the ticket system.",
+        guild = discord.Object(id = server_id)
+)
+@ac.checks.has_role(permitted_role)
+async def create_buttons(ctx):
+    """Creates buttons for the ticket system."""
+    await ctx.response.send_message("Creating buttons", ephemeral = True, delete_after = 1)
+    button_embed = discord.Embed(title = "Need help? Create a ticket",
+                                 description = "To create a ticket, choose a ticket type and click a button below.\n\n1. **Info Ticket**:\n * Text only\n * No response or discussion needed\n * Examples: Sending feedback, notices, and other helpful information\n2. **Mod Ticket**:\n * Text and images supported\n * Talk to a member of the Mod Team\n * Examples: Resolving more complex situations, getting clarifications, etc.",
+                                 color = yupil_color)
+    button_embed.set_footer(text = "Yupil Bot Ticket System",
+                            icon_url = bot.user.avatar.url)
+    button_message = await ctx.channel.send(embed = button_embed, view = Buttons(timeout = None))
+    button_file = open("buttons_message_id.txt", "w")
+    button_file.write(str(button_message.id))
+    button_file.close()
+
 @bot.event
 async def on_message(message: discord.Message):
     if message.channel.id == welcome_channel:
@@ -314,7 +455,6 @@ async def remove_duplicate_welcomes(message: discord.Message):
         async for m in message.channel.history(limit = 5):
             if m.author == message.author and m.id != message.id and ("just boosted the server!" not in m.content):
                 await m.delete()
-
 
 @bot.event
 async def on_raw_message_delete(message: discord.RawMessageDeleteEvent):
@@ -333,6 +473,8 @@ async def on_raw_message_delete(message: discord.RawMessageDeleteEvent):
             if message.cached_message.author.avatar:
                 embedVar.set_author(name = message.cached_message.author,
                                         icon_url = message.cached_message.author.avatar.url)
+            else:
+                embedVar.set_author(name = message.cached_message.author)
             embedVar.set_footer(text = f"Author: {message.cached_message.author} | ID: {message.cached_message.author.id}")
 
             i = 1
@@ -391,6 +533,16 @@ async def on_raw_message_edit(message: discord.RawMessageUpdateEvent):
             embedVar.set_footer(text = f"Author: {message.cached_message.author} | ID: {message.cached_message.author.id}")
             embedVar.add_field(name = "Before:", value = before, inline = False)
             embedVar.add_field(name = "After:", value = after, inline = False)
+        else:
+            message_channel = await bot.fetch_channel(message.channel_id)
+            message = await message_channel.fetch_message(message.message_id)
+            embedVar = discord.Embed(title = None,
+                                     description = f"**Message sent by {message.author.mention} edited in {message.jump_url}**",
+                                     color = edit_color,
+                                     timestamp = timestamp)
+            embedVar.set_footer(text = f"Author: {message.author} | ID: {message.author.id}")
+            embedVar.add_field(name = "Before:", value = "`Message uncached`", inline = False)
+            embedVar.add_field(name = "After:", value = message.content, inline = False)
 
         await log_channel.send(embed = embedVar)
     except BaseException as e:
@@ -408,6 +560,10 @@ async def on_raw_message_edit(message: discord.RawMessageUpdateEvent):
 @bot.event
 async def on_ready():
     await tree.sync(guild = discord.Object(id = server_id))
+    # Retrieve ticket button message ID
+    if os.path.isfile("buttons_message_id.txt"):
+        button_message_id = int(open("buttons_message_id.txt", "r").readline())
+        bot.add_view(view = Buttons(timeout = None), message_id = button_message_id)
     print("Logged in and ready to receive commands.")
 
 # Bot login
