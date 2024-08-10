@@ -32,12 +32,13 @@ Custom Discord bot with basic chat functions, implemented with slash commands
    ![image](https://github.com/mumochi/YupilBot/assets/149116223/63654aa2-119f-4d76-a2c3-4f170c24cb62)
    * Intended to provide robust one-way translation of non-English text to English
    * Free version of the DeepL API allows for up to 500,000 translated characters per month
+5. A lot more stuff we need to add to this page.
 
 
 
 ### Setup
-* Fill in server-specific values for `server_id` and `permitted_role`
-* Ensure proper role configuration for command permissions
-* Generate a [DeepL authentication key](https://developers.deepl.com/docs/getting-started/auth), copy to deepl_key.txt, and place deepl_key.txt in the YupilBot.py directory
-* Generate a [Discord bot token](https://discord.com/developers/docs/topics/oauth2), copy to token.txt, and place token.txt in the YupilBot.py directory
+* Create a .env file at the same level as YupilBot.py with the keys: DISCORD_API, DEEPL_API_TOKEN, DISCORD_SERVER_ID. Insert your generate keys for your Discord application/bot key and DeepL API key into the relavent fields.
+* Optionally create a .env.local file with the same key names as the .env but with the necessary keys for a different server.
+* Changes the values in config.ini for your server. prod is the default config, additional configs can be defined and used.
+* You may need to generate a python requirements.txt file from the source if you do not have all libraries already installed.
 * Run YupilBot.py
