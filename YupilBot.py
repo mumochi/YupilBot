@@ -135,7 +135,7 @@ async def dm(ctx, dm_message: str, user: discord.User):
     message_log = await log_channel.send(f"DM sent to {user.display_name}:", embed = dm_embed)
     await ctx.response.send_message(f"DM sent to {user.display_name}. View log: {message_log.jump_url}", ephemeral = True)
 
-# Restrict command: bot restricts user permissions to view server channels
+# Helper functions for restrict command
 async def create_ticket(name: str, guild: discord.Guild):
         """Creates a new channel"""
         category = await bot.fetch_channel(helpdesk_channel)
@@ -153,14 +153,22 @@ async def user_channels_off(user: discord.User, guild: discord.Guild):
     """Sets all channel overrides to limit visibility for user"""
     # Iteratively restrict access to every channel and VC
     for channel in guild.text_channels:
-        perms = channel.overwrites_for(user)
-        perms.read_messages = False
-        await channel.set_permissions(user, overwrite = perms)
+        if channel.permissions_for(guild.me).view_channel:
+            perms = channel.overwrites_for(user)
+            perms.read_messages = False
+            await channel.set_permissions(user, overwrite = perms)
     for vc in guild.voice_channels:
-        perms_vc = vc.overwrites_for(user)
-        perms_vc.view_channel = False
-        await vc.set_permissions(user, overwrite = perms_vc)
+        if vc.permissions_for(guild.me).view_channel:
+            perms_vc = vc.overwrites_for(user)
+            perms_vc.view_channel = False
+            await vc.set_permissions(user, overwrite = perms_vc)
+    for forum in guild.forums:
+        if forum.permissions_for(guild.me).view_channel:
+            perms_forum = forum.overwrites_for(user)
+            perms_forum.view_channel = False
+            await forum.set_permissions(user, overwrite = perms_forum)
 
+# Restrict command: bot restricts user permissions to view server channels
 @tree.command(
         name = "restrict",
         description = "Restricts a user.",
@@ -168,9 +176,12 @@ async def user_channels_off(user: discord.User, guild: discord.Guild):
 )
 @ac.checks.has_role(permitted_role)
 @ac.describe(
-    user = "User to restrict"
+    user = "User to restrict",
+    create_channel = "Whether to create a ticket channel (default: True)",
+    send_message = "Whether to send a mod message, sends a default message if no custom_message given (default: True)",
+    custom_message = "Custom mod message (default: None)"
 )
-async def restrict(ctx, user: discord.User, create_channel: bool = True, send_message: bool = False, custom_message: str = None):
+async def restrict(ctx, user: discord.User, create_channel: bool = True, send_message: bool = True, custom_message: str = None):
     """Restricts a user."""
     timestamp = datetime.datetime.now()
     log_channel = bot.get_channel(int(config[os.getenv('YUPIL_ENV')]['log_channel']))
@@ -192,7 +203,7 @@ async def restrict(ctx, user: discord.User, create_channel: bool = True, send_me
         
         # Send a default or custom restriction embed message in the newly-created channel
         if send_message:
-            mod_message = "We've identified unusual activity on your account. For this reason, we have temporarily restricted your account from viewing or posting in other channels.\n\nTo have this restriction removed, please send us a message here at your earliest convenience to confirm that this is not an automated bot account. Failure to respond to this message may result in your removal from the server.\n\nThank you for your patience and cooperation."
+            mod_message = "We've identified unusual activity on your account. For this reason, we have temporarily restricted your account from viewing or posting in other channels.\n\nTo have this restriction removed, please send us a message here in this channel at your earliest convenience to confirm that this is not an automated bot account. Failure to respond to this message may result in your removal from the server.\n\nThank you for your patience and cooperation."
             
             if custom_message != None:
                 mod_message = custom_message.replace(r'\n', '\n')
@@ -214,20 +225,25 @@ async def restrict(ctx, user: discord.User, create_channel: bool = True, send_me
     await log_channel.send(embed = log_embed)
     await ctx.delete_original_response()
 
-# Unrestrict command: bot unrestricts user permissions to view server channels
+# Helper functions for unrestrict command
 async def user_channels_on(user: discord.User, guild: discord.Guild):
     """Resets all user-specific channel overrides established by previous restriction"""
     # Iteratively restore normal access to all channels and VCs
     for channel in guild.text_channels:
-        await channel.set_permissions(user, overwrite = None)
+        if channel.permissions_for(guild.me).view_channel:
+            await channel.set_permissions(user, overwrite = None)
     for vc in guild.voice_channels:
-        await vc.set_permissions(user, overwrite = None)
+        if vc.permissions_for(guild.me).view_channel:
+            await vc.set_permissions(user, overwrite = None)
+    for forum in guild.forums:
+        if forum.permissions_for(guild.me).view_channel:
+            await forum.set_permissions(user, overwrite = None)      
 
 async def create_transcript(channel: discord.TextChannel):
     """Creates two transcripts: one to send in the transcript channel and one to save locally for long-term archival"""
     transcript_channel = bot.get_channel(int(config[os.getenv('YUPIL_ENV')]['transcript_channel']))
     today = datetime.date.today()
-    today_format = f"{today.year}-{today.month}-{today.day}"
+    today_format = f"{today.year}-{'%02d' % today.month}-{'%02d' % today.day}"
     transcript = await chat_exporter.export(channel, tz_info = "US/Pacific")
     filename = f"{today_format}-{channel.name}.html"
     transcript_file = discord.File(io.BytesIO(transcript.encode()),
@@ -242,7 +258,16 @@ async def create_transcript(channel: discord.TextChannel):
         filename = f"{today_format}-{channel.name}-{i}.html"
         i += 1
     await transcript_message.attachments[0].save(f"transcripts/{filename}")
+    embed = discord.Embed(title = "Transcript Created",
+                          description = None,
+                          color = discord.Color.green(),
+                          timestamp = datetime.datetime.now())
+    embed.add_field(name = "Channel", value = channel.name)
+    embed.add_field(name = "Transcript file", value = transcript_message.attachments[0].url, inline = False)
+    await transcript_message.edit(embed = embed, attachments = [])
 
+
+# Unrestrict command: bot unrestricts user permissions to view server channels
 @tree.command(
         name = "unrestrict",
         description = "Unrestricts a user.",
@@ -250,9 +275,10 @@ async def create_transcript(channel: discord.TextChannel):
 )
 @ac.checks.has_role(permitted_role)
 @ac.describe(
-    user = "User to unrestrict"
+    user = "User to unrestrict",
+    delete_ticket = "Whether to save a transcript and delete the ticket (default: True)"
 )
-async def unrestrict(ctx, user: discord.User, delete_ticket: bool = False):
+async def unrestrict(ctx, user: discord.User, delete_ticket: bool = True):
     """Unrestricts a user."""
     timestamp = datetime.datetime.now()
     log_channel = bot.get_channel(int(config[os.getenv('YUPIL_ENV')]['log_channel']))
@@ -439,6 +465,23 @@ async def create_buttons(ctx):
     button_file = open("buttons_message_id.txt", "w")
     button_file.write(str(button_message.id))
     button_file.close()
+
+# Command to add a user to a ticket
+@tree.command(
+        name = "add_user",
+        description = "Adds a user to a ticket.",
+        guild = discord.Object(id = server_id)
+)
+@ac.checks.has_role(permitted_role)
+@ac.describe(
+    user = "User to add to a ticket",
+    channel = "Ticket channel to add user to",
+)
+async def add_user(ctx, channel: discord.TextChannel, user: discord.User):
+    new_perms = channel.overwrites_for(user)
+    new_perms.read_messages = True
+    await channel.set_permissions(user, overwrite = new_perms)
+    await ctx.response.send_message(f"{user.display_name} added to ticket.", ephemeral = True, delete_after = 1)
 
 @bot.event
 async def on_message(message: discord.Message):
