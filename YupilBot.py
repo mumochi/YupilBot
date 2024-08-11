@@ -510,8 +510,8 @@ async def log_dm_reply(message: discord.Message):
     timestamp = datetime.datetime.now()
     log_channel = bot.get_channel(int(config[os.getenv('YUPIL_ENV')]['log_channel']))
     embed = discord.Embed(title = "DM Reply",
-                          description = f"Received DM reply from {message.author.mention}:\n{message.content}",
-                          color = yupil_color,
+                          description = f"**Received DM reply from {message.author.mention}**\n{message.content}",
+                          color = member_color,
                           timestamp = timestamp)
 
     if message.author.avatar:
@@ -526,7 +526,7 @@ async def log_dm_reply(message: discord.Message):
         try: 
             attach.append(await attachment.to_file(use_cached = True))
         except:
-            embed.add_field(name = "Attachment unable to be sent:", value = attachment.filename)
+            embed.add_field(name = "Attachment unable to be sent", value = attachment.filename)
 
     if len(attach) == 0:
         await log_channel.send(embed = embed)
