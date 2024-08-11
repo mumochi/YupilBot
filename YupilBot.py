@@ -126,13 +126,14 @@ async def dm(ctx, dm_message: str, user: discord.User):
     log_channel = bot.get_channel(int(config[os.getenv('YUPIL_ENV')]['log_channel']))
     guild = await bot.fetch_guild(server_id)
     dm_embed = discord.Embed(title = "Mod Team Message",
-                               description = f"Hello {user.mention},\n\n{dm_message}\n\nIf you would like to reach out to the Mod Team, please create a ticket using our ticket system.",
+                               description = f"Hello {user.mention},\n\n{dm_message}",
                                color = yupil_color)
-    dm_embed.set_footer(text = "This is a Yupil Bot message. The Mod Team is unable to see or respond to further DMs.")
+    dm_embed.set_footer(text = "This is a Yupil Bot message on behalf of the Mod Team. If you would like to reach out to a member of the Mod Team, please create a ticket on the server using our ticket system.")
     dm_embed.set_author(name = guild.name,
                         icon_url = guild.icon)
     await user.send(embed = dm_embed)
-    message_log = await log_channel.send(f"DM sent to {user.display_name}:", embed = dm_embed)
+    dm_embed.title = f"DM sent to {user.display_name}:"
+    message_log = await log_channel.send(embed = dm_embed)
     await ctx.response.send_message(f"DM sent to {user.display_name}. View log: {message_log.jump_url}", ephemeral = True)
 
 # Helper functions for restrict command
@@ -483,10 +484,15 @@ async def add_user(ctx, channel: discord.TextChannel, user: discord.User):
     await channel.set_permissions(user, overwrite = new_perms)
     await ctx.response.send_message(f"{user.display_name} added to ticket.", ephemeral = True, delete_after = 1)
 
+# Listen for new message events
 @bot.event
 async def on_message(message: discord.Message):
-    if message.channel.id == welcome_channel:
+    if message.author.bot:
+        return
+    elif message.channel.id == welcome_channel:
         await remove_duplicate_welcomes(message = message)
+    elif isinstance(message.channel, discord.DMChannel):
+        await log_dm_reply(message = message)
     else:
         return
 
@@ -499,6 +505,37 @@ async def remove_duplicate_welcomes(message: discord.Message):
             if m.author == message.author and m.id != message.id and ("just boosted the server!" not in m.content):
                 await m.delete()
 
+# Log DM replies
+async def log_dm_reply(message: discord.Message):
+    timestamp = datetime.datetime.now()
+    log_channel = bot.get_channel(int(config[os.getenv('YUPIL_ENV')]['log_channel']))
+    embed = discord.Embed(title = "DM Reply",
+                          description = f"Received DM reply from {message.author.mention}:\n{message.content}",
+                          color = yupil_color,
+                          timestamp = timestamp)
+
+    if message.author.avatar:
+        embed.set_author(name = message.author,
+                         icon_url = message.author.avatar.url)
+    else:
+        embed.set_author(name = message.author)
+    embed.set_footer(text = f"Author: {message.author} | ID: {message.author.id}")
+
+    attach = []
+    for attachment in message.attachments:
+        try: 
+            attach.append(await attachment.to_file(use_cached = True))
+        except:
+            embed.add_field(name = "Attachment unable to be sent:", value = attachment.filename)
+
+    if len(attach) == 0:
+        await log_channel.send(embed = embed)
+    else:
+        embed.add_field(name = "Files included", value = "See attachment(s) below")
+        await log_channel.send(embed = embed)
+        await log_channel.send(files = attach)
+
+# Log message deletions
 @bot.event
 async def on_raw_message_delete(message: discord.RawMessageDeleteEvent):
     timestamp = datetime.datetime.now()
@@ -543,7 +580,12 @@ async def on_raw_message_delete(message: discord.RawMessageDeleteEvent):
                                          timestamp = timestamp)
             embedVar.set_footer(text = f"Message ID: {message.message_id}")
 
-        await log_channel.send(embed = embedVar, files=attach)
+        if len(attach) == 0:
+            await log_channel.send(embed = embedVar)
+        else:
+            embedVar.add_field(name = "Files included", value = "See attachment(s) below")
+            await log_channel.send(embed = embedVar)
+            await log_channel.send(files = attach)
     except BaseException as e:
         note = "**Error occurred when logging deleted message**\n"
         embedVar = discord.Embed(title=None,
@@ -553,7 +595,7 @@ async def on_raw_message_delete(message: discord.RawMessageDeleteEvent):
         )
         await log_channel.send(embed=embedVar)
 
-
+# Log message edits
 @bot.event
 async def on_raw_message_edit(message: discord.RawMessageUpdateEvent):
     timestamp = datetime.datetime.now()
@@ -596,7 +638,6 @@ async def on_raw_message_edit(message: discord.RawMessageUpdateEvent):
                                  timestamp= timestamp
         )
         await log_channel.send(embed=embedVar)
-
 
 
 # Sync commands
