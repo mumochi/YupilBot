@@ -154,20 +154,29 @@ async def user_channels_off(user: discord.User, guild: discord.Guild):
     """Sets all channel overrides to limit visibility for user"""
     # Iteratively restrict access to every channel and VC
     for channel in guild.text_channels:
-        if channel.permissions_for(guild.me).view_channel:
-            perms = channel.overwrites_for(user)
-            perms.read_messages = False
-            await channel.set_permissions(user, overwrite = perms)
+        try:
+            if channel.permissions_for(guild.me).view_channel:
+                perms = channel.overwrites_for(user)
+                perms.read_messages = False
+                await channel.set_permissions(user, overwrite = perms)
+        except:
+            print(f"Failed to hide channel {channel.name}. Skipping")
     for vc in guild.voice_channels:
-        if vc.permissions_for(guild.me).view_channel:
-            perms_vc = vc.overwrites_for(user)
-            perms_vc.view_channel = False
-            await vc.set_permissions(user, overwrite = perms_vc)
+        try:
+            if vc.permissions_for(guild.me).view_channel:
+                perms_vc = vc.overwrites_for(user)
+                perms_vc.view_channel = False
+                await vc.set_permissions(user, overwrite = perms_vc)
+        except:
+            print(f"Failed to hide channel {channel.name}. Skipping")
     for forum in guild.forums:
-        if forum.permissions_for(guild.me).view_channel:
-            perms_forum = forum.overwrites_for(user)
-            perms_forum.view_channel = False
-            await forum.set_permissions(user, overwrite = perms_forum)
+        try:
+            if forum.permissions_for(guild.me).view_channel:
+                perms_forum = forum.overwrites_for(user)
+                perms_forum.view_channel = False
+                await forum.set_permissions(user, overwrite = perms_forum)
+        except:
+            print(f"Failed to hide channel {channel.name}. Skipping")
 
 # Restrict command: bot restricts user permissions to view server channels
 @tree.command(
@@ -231,14 +240,23 @@ async def user_channels_on(user: discord.User, guild: discord.Guild):
     """Resets all user-specific channel overrides established by previous restriction"""
     # Iteratively restore normal access to all channels and VCs
     for channel in guild.text_channels:
-        if channel.permissions_for(guild.me).view_channel:
-            await channel.set_permissions(user, overwrite = None)
+        try:
+            if channel.permissions_for(guild.me).view_channel:
+                await channel.set_permissions(user, overwrite = None)
+        except:
+            print(f"Failed to reveal channel {channel.name}. Skipping")
     for vc in guild.voice_channels:
-        if vc.permissions_for(guild.me).view_channel:
-            await vc.set_permissions(user, overwrite = None)
+        try:
+            if vc.permissions_for(guild.me).view_channel:
+                await vc.set_permissions(user, overwrite = None)
+        except:
+            print(f"Failed to reveal channel {channel.name}. Skipping")
     for forum in guild.forums:
-        if forum.permissions_for(guild.me).view_channel:
-            await forum.set_permissions(user, overwrite = None)      
+        try:
+            if forum.permissions_for(guild.me).view_channel:
+                await forum.set_permissions(user, overwrite = None)
+        except:
+            print(f"Failed to reveal channel {channel.name}. Skipping")
 
 async def create_transcript(channel: discord.TextChannel):
     """Creates two transcripts: one to send in the transcript channel and one to save locally for long-term archival"""
