@@ -56,12 +56,12 @@ except:
 @ac.describe(
     chat_message = "Message to send to text channel",
     channel = "Channel to send the message to",
-    as_reply = "Message ID to reply to",
-    as_embed = "Send the message as an embed",
-    embed_title = "Title for embed",
-    image_url = "Image URL for embed",
-    embed_url = "URL for embed",
-    embed_footer = "Footer for embed"
+    as_reply = "Message ID to reply to (default: None)",
+    as_embed = "Send the message as an embed (default: False)",
+    embed_title = "Title for embed (default: None)",
+    image_url = "Image URL for embed (default: None)",
+    embed_url = "URL for embed (default: None)",
+    embed_footer = "Footer for embed (default: None)"
 )
 async def chat(ctx, chat_message: str, channel: discord.TextChannel, as_reply: str = None,
                as_embed: bool = False, embed_title: str = None, image_url: str = None, embed_url: str = None, embed_footer: str = None):
@@ -315,17 +315,21 @@ async def unrestrict(ctx, user: discord.User, delete_ticket: bool = True):
 # Translation command using DeepL API
 @tree.command(
         name = "translate",
-        description = "Translates text to English (EN-US) using the DeepL API.",
+        description = "Translates text using the DeepL API.",
         guild = discord.Object(id = server_id)
 )
 @ac.checks.has_role(permitted_role)
 @ac.describe(
-    text = "Text to translate"
+    text = "Text to translate",
+    target_lang = "Target language code supported by DeepL (default: EN-US)"
 )
-async def translate(ctx, text: str):
+async def translate(ctx, text: str, target_lang: str = "EN-US"):
     """Translates text to English (EN-US) using the DeepL API."""
-    tr_text = translator.translate_text(text, target_lang = "EN-US")
-    await ctx.response.send_message(f"{text} -> " + str(tr_text) + " (EN-US)")
+    try:
+        tr_text = translator.translate_text(text = text, target_lang = target_lang)
+        await ctx.response.send_message(f"{text} ({tr_text.detected_source_lang}) -> " + tr_text.text + f" ({target_lang})")
+    except:
+        await ctx.response.send_message(f"{target_lang} is not a language code supported by DeepL.", ephemeral = True)
 
 # Define modal classes for interactive UI on button clicks
 class InfoModal(discord.ui.Modal):
@@ -495,6 +499,38 @@ async def on_message(message: discord.Message):
         await log_dm_reply(message = message)
     else:
         return
+    
+# Listen for new member join and member update events
+@bot.event
+async def on_member_join(member: discord.Member):
+    if member.public_flags.spammer:
+        await log_spammer(member)
+
+@bot.event
+async def on_member_update(before: discord.Member, after: discord.Member):
+    if before.bot:
+        return
+    elif before.public_flags.spammer != after.public_flags.spammer:
+        if after.public_flags.spammer:
+            await log_spammer(after)
+     
+# Log spammer detection
+async def log_spammer(member: discord.Member):
+    timestamp = datetime.datetime.now()
+    log_channel = bot.get_channel(int(config[os.getenv('YUPIL_ENV')]['log_channel']))
+    embed = discord.Embed(title = "Potential Spammer Detected",
+                          description = f"{member.mention} has been detected by Discord as a potential spammer.",
+                          color = discord.Color.orange(),
+                          timestamp = timestamp)
+
+    if member.avatar:
+        embed.set_author(name = member.name,
+                         icon_url = member.avatar.url)
+    else:
+        embed.set_author(name = member.display_name)
+    embed.set_footer(text = f"Author: {member.display_name} | ID: {member.id}")
+
+    await log_channel.send(embed = embed)
 
 # Remove duplicate welcome messages
 async def remove_duplicate_welcomes(message: discord.Message):
@@ -502,7 +538,7 @@ async def remove_duplicate_welcomes(message: discord.Message):
         return
     else:
         async for m in message.channel.history(limit = 5):
-            if m.author == message.author and m.id != message.id and ("just boosted the server!" not in m.content):
+            if m.author.id == message.author.id and m.id != message.id and ("just boosted the server!" not in m.content):
                 await m.delete()
 
 # Log DM replies
