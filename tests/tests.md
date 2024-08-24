@@ -119,13 +119,12 @@ Due to the nature of testing in Discord, which requires manual user input under 
 	* Uncached, not bot, text>1000 characters
 		* Expected: log with truncated message (after only)
 		* Result: PASS
-### remove_duplicate_welcomes
-	* Expected: deletes duplicate messages from the same author in the welcome channel by searching the last 5 messages (ignores Discord Nitro boost messages)
-	* Result: PASS - only tested on non-Nitro messages
-
 	* Uncached, not bot, embed/upload edit
 		* Expected: log with full-length message (after only)
 		* Result: PASS
+### remove_duplicate_welcomes
+	* Expected: deletes duplicate messages from the same author in the welcome channel by searching the last 5 messages (ignores Discord Nitro boost messages)
+	* Result: PASS - only tested on non-Nitro messages
 ### **restrict**
 	* No channel creation
 		* Expected: no channels visible
