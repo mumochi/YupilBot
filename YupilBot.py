@@ -195,10 +195,48 @@ async def dm(ctx: commands.Context, dm_message: str, user: discord.Member):
     dm_embed.set_footer(text="This is a Yupil Bot message on behalf of the Mod Team. If you would like to reach out to a member of the Mod Team, please create a ticket on the server using our ticket system.")
     dm_embed.set_author(name=guild.name,
                         icon_url=guild.icon)
-    await user.send(embed=dm_embed)
-    dm_embed.title = f"DM sent to {user.display_name}:"
-    message_log = await log_channel.send(embed=dm_embed)
-    await ctx.response.send_message(f"DM sent to {user.display_name}. View log: {message_log.jump_url}", ephemeral=True)
+    try:
+        await user.send(embed=dm_embed)
+        dm_embed.title = f"DM sent to {user.display_name}:"
+        message_log = await log_channel.send(embed=dm_embed)
+        await ctx.response.send_message(f"DM sent to {user.display_name}. View log: {message_log.jump_url}", ephemeral=True)
+    except:
+        await ctx.response.send_message(f"DM failed to send. {user.display_name} may have DMs turned off.")
+
+# Botkick command: standardized messaging and kick handling for likely bots
+@tree.command(
+        name = "botkick",
+        description = "Standardized messaging and kick handling for likely bots."
+)
+@ac.checks.has_role(permitted_role)
+@ac.describe(
+        user = "User to kick."
+)
+async def botkick(ctx: commands.Context, user: discord.Member):
+    """Standardized messaging and kick handling for likely bots."""
+    timestamp = datetime.datetime.now()
+    log_channel = bot.get_channel(int(config[os.getenv('YUPIL_ENV')]['priority_log_channel']))
+    dm_message = "Discord has detected unusual activity on your account consistent with bot and/or spam messages. Please send in a support ticket if you believe this was done in error."
+    dm_embed = discord.Embed(title="Mod Team Message",
+                               description=f"Hello {user.mention},\n\n{dm_message}\n\n ",
+                               color=yupil_color)
+    dm_embed.set_footer(text="This is a Yupil Bot message on behalf of the Mod Team. If you would like to reach out to a member of the Mod Team, please create a ticket on the server using our ticket system.")
+    dm_embed.set_author(name=guild.name,
+                        icon_url=guild.icon)
+    try:
+        await user.send(embed=dm_embed)
+    except:
+        await ctx.response.send_message(f"DM failed to send. {user.display_name} may have DMs turned off.")
+    await user.kick()
+
+    embed = discord.Embed(title = "Suspected/Likely Bot Kicked",
+                          description = f"{user.mention} has been kicked due to unusual account activity consistent with bot and/or spam messages.",
+                          color = discord.Color.orange(),
+                          timestamp = timestamp)
+    avatar = await valid_avatar(user=user)
+    embed.set_author(name=user.display_name, icon_url=avatar)
+    embed.set_footer(text = f"Member: {user.display_name} | ID: {user.id}")
+    await log_channel.send(embed = embed)
 
 # Helper functions for restrict command
 async def create_ticket(name: str, guild: discord.Guild):
@@ -600,7 +638,7 @@ async def on_member_update(before: discord.Member, after: discord.Member):
 # Log spammer detection
 async def log_spammer(member: discord.Member):
     timestamp = datetime.datetime.now()
-    log_channel = bot.get_channel(int(config[os.getenv('YUPIL_ENV')]['log_channel']))
+    log_channel = bot.get_channel(int(config[os.getenv('YUPIL_ENV')]['priority_log_channel']))
     embed = discord.Embed(title = "Potential Spammer Detected",
                           description = f"{member.mention} has been detected by Discord as a potential spammer.",
                           color = discord.Color.orange(),
@@ -612,7 +650,7 @@ async def log_spammer(member: discord.Member):
 
 async def check_excess_dms(member: discord.Member):
     timestamp = datetime.datetime.now()
-    log_channel = bot.get_channel(int(config[os.getenv('YUPIL_ENV')]['log_channel']))
+    log_channel = bot.get_channel(int(config[os.getenv('YUPIL_ENV')]['priority_log_channel']))
     dm_flag = "unusual_dm_activity_until"
     mem_id = member.id
     url = f"https://discord.com/api/v10/guilds/{server_id}/members/{mem_id}"
