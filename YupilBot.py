@@ -202,7 +202,7 @@ async def dm(ctx: commands.Context, dm_message: str, user: discord.Member):
         message_log = await log_channel.send(embed=dm_embed)
         await ctx.response.send_message(f"DM sent to {user.display_name}. View log: {message_log.jump_url}", ephemeral=True)
     except:
-        await ctx.response.send_message(f"DM failed to send. {user.display_name} may have DMs turned off.")
+        await ctx.response.send_message(f"DM failed to send. {user.display_name} may have DMs turned off.", ephemeral=True)
 
 # Botkick command: standardized messaging and kick handling for likely bots
 @tree.command(
@@ -228,8 +228,9 @@ async def botkick(ctx: commands.Context, user: discord.Member):
         await user.send(embed=dm_embed)
         await asyncio.sleep(2)
         await user.kick()
+        await ctx.response.send_message("DM sent and user kicked.", ephemeral=True, delete_after=1)
     except:
-        await ctx.response.send_message(f"DM failed to send. {user.display_name} may have DMs turned off.")
+        await ctx.response.send_message(f"DM failed to send. {user.display_name} may have DMs turned off.", ephemeral=True)
         await asyncio.sleep(2)
         await user.kick()
     
