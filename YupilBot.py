@@ -225,9 +225,11 @@ async def botkick(ctx: commands.Context, user: discord.Member):
                         icon_url=guild.icon)
     try:
         await user.send(embed=dm_embed)
+        await user.kick()
     except:
         await ctx.response.send_message(f"DM failed to send. {user.display_name} may have DMs turned off.")
-    await user.kick()
+        await user.kick()
+    
 
     embed = discord.Embed(title = "Suspected/Likely Bot Kicked",
                           description = f"{user.mention} has been kicked due to unusual account activity consistent with bot and/or spam messages.",
