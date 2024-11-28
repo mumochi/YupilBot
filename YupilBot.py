@@ -11,7 +11,6 @@ import chat_exporter
 import io
 import requests
 import typing
-from collections import deque
 
 # Set environment and read config file
 if os.getenv('YUPIL_ENV') != "prod":
@@ -583,6 +582,63 @@ async def on_message(message: discord.Message):
     else:
         return
 
+# Listen for new member join and member update events
+@bot.event
+async def on_member_join(member: discord.Member):
+    if member.public_flags.spammer:
+        await log_spammer(member)
+
+@bot.event
+async def on_member_update(before: discord.Member, after: discord.Member):
+    if before.bot:
+        return
+    elif before.public_flags.spammer != after.public_flags.spammer:
+        if after.public_flags.spammer:
+            await log_spammer(after)
+    await check_excess_dms(after)       
+     
+# Log spammer detection
+async def log_spammer(member: discord.Member):
+    timestamp = datetime.datetime.now()
+    log_channel = bot.get_channel(int(config[os.getenv('YUPIL_ENV')]['log_channel']))
+    embed = discord.Embed(title = "Potential Spammer Detected",
+                          description = f"{member.mention} has been detected by Discord as a potential spammer.",
+                          color = discord.Color.orange(),
+                          timestamp = timestamp)
+    avatar = await valid_avatar(user=member)
+    embed.set_author(name=member.display_name, icon_url=avatar)
+    embed.set_footer(text = f"Member: {member.display_name} | ID: {member.id}")
+    await log_channel.send(embed = embed)
+
+async def check_excess_dms(member: discord.Member):
+    timestamp = datetime.datetime.now()
+    log_channel = bot.get_channel(int(config[os.getenv('YUPIL_ENV')]['log_channel']))
+    dm_flag = "unusual_dm_activity_until"
+    mem_id = member.id
+    url = f"https://discord.com/api/v10/guilds/{server_id}/members/{mem_id}"
+    headers = {
+        'Accept': 'application/json',
+        'Authorization': f'Bot {token}'
+    }
+    try:
+        r = requests.get(url=url, headers=headers)
+        if r.json()[dm_flag] is not None:
+            embed = discord.Embed(title = "Excessive DMs Detected",
+                            description = f"{member.mention} has been detected by Discord as sending excessive DMs.",
+                            color = discord.Color.orange(),
+                            timestamp = timestamp)
+            avatar = await valid_avatar(user=member)
+            embed.set_author(name=member.display_name, icon_url=avatar)
+            embed.set_footer(text = f"Member: {member.display_name} | ID: {member.id}")
+            await log_channel.send(embed = embed)
+    except:
+        note = f"**Error occurred when getting excessive DM status for {member.mention}**\n"
+        embed = discord.Embed(title=None,
+                                 description=note,
+                                 color=discord.Color.dark_gold(),
+                                 timestamp= timestamp
+        )
+        await log_channel.send(embed=embed)
 
 # Remove duplicate welcome messages
 async def remove_duplicate_welcomes(message: discord.Message):
@@ -593,7 +649,6 @@ async def remove_duplicate_welcomes(message: discord.Message):
         async for m in message.channel.history(limit = 5):
             if m.author.id == message.author.id and m.id != message.id and ("just boosted the server!" not in m.content):
                 await m.delete()
-
 
 async def valid_attachment(attachment: discord.Attachment):
     """Checks if an attachment has a valid proxy URL by checking for status code 200."""
@@ -618,31 +673,19 @@ async def log_dm_reply(message: discord.Message):
     embed.set_author(name=message.author, icon_url=avatar)
     embed.set_footer(text=f"Author: {message.author} | ID: {message.author.id}")
 
-    embed_list = deque([])
     attach = []
-    i = 1
-    num_attachments = len(message.attachments)
     for attachment in message.attachments:
-        proxy_url = await valid_attachment(attachment=attachment)
-        if attachment.content_type in ("image/png", "image/jpeg", "image/webp", "image/gif") and proxy_url is not None:
-            if embed.image.url is None:
-                embed.set_image(url=attachment.proxy_url)
-            else:
-                embed_list.append(discord.Embed(url=default_url).set_image(url=attachment.proxy_url))
-        elif attachment.content_type in ("video/mov", "video/mp4", "video/mpeg", "audio/mpeg", "audio/wav") and proxy_url is not None:
-            attach.append(await attachment.to_file(use_cached=True))
-        else:
-            note = f"Unable to save attachment of type `{attachment.content_type}`, filename: **{attachment.filename}**"
-            embed.add_field(name=f"Attachment {i}/{num_attachments}:", value=note, inline=False)
+        try: 
+            attach.append(await attachment.to_file(use_cached = True))
+        except:
+            embed.add_field(name = "Attachment unable to be sent", value = attachment.filename)
 
-    if len(embed_list) == 0:
-        await log_channel.send(embed=embed) # This isn't strictly necessary but improves single-image display
+    if len(attach) == 0:
+        await log_channel.send(embed = embed)
     else:
-        embed_list.appendleft(embed)
-        await log_channel.send(embeds=list(embed_list))
-    if attach:
-        await log_channel.send(files=attach)
-
+        embed.add_field(name = "Files included", value = "See attachment(s) below")
+        await log_channel.send(embed = embed)
+        await log_channel.send(files = attach)
 
 # Log message deletions
 @bot.event
@@ -650,7 +693,6 @@ async def on_raw_message_delete(message: discord.RawMessageDeleteEvent):
     """Listens for and logs non-bot message deletions."""
     timestamp = datetime.datetime.now()
     attach = []
-    embed_list = deque([])
     try:
         if message.cached_message is not None:
             if message.cached_message.author.bot:
@@ -668,41 +710,38 @@ async def on_raw_message_delete(message: discord.RawMessageDeleteEvent):
             i = 1
             num_attachments = len(message.cached_message.attachments)
             for attachment in message.cached_message.attachments:
-                proxy_url = await valid_attachment(attachment=attachment)
-                if attachment.content_type in ("image/png", "image/jpeg", "image/webp", "image/gif") and proxy_url is not None:
-                    if embedVar.image.url is None:
-                        embedVar.set_image(url=proxy_url)
-                    else:
-                        embed_list.append(discord.Embed(url=default_url).set_image(url=proxy_url))
-                elif attachment.content_type in ("video/mov", "video/mp4", "video/mpeg", "audio/mpeg", "audio/wav") and proxy_url is not None:
-                    attach.append(await attachment.to_file(use_cached=True))
+                if attachment.content_type in ("image/png", "image/jpeg", "image/webp", "image/gif", "video/mov", "video/mp4", "video/mpeg", "audio/mpeg", "audio/wav"):
+                    try:
+                        attach.append(await attachment.to_file(use_cached=True))
+                    except BaseException as failure:
+                        note = f"Unable to save attachment of type `{attachment.content_type}`, filename: **{attachment.filename}**"
+                        embedVar.add_field(name = f"Attachment {i}/{num_attachments}:", value = note, inline = False)
                 else:
-                    note = f"Unable to save attachment of type `{attachment.content_type}`, filename: **{attachment.filename}**"
-                    embedVar.add_field(name=f"Attachment {i}/{num_attachments}:", value=note, inline=False)
+                    note = f"Unable to save attachment of unsupported type `{attachment.content_type}`, filename: **{attachment.filename}**"
+                    embedVar.add_field(name = f"Attachment {i}/{num_attachments}:", value = note, inline = False)
                 i += 1
 
         else:
             note = "Message not cached, unable to display content."
             channel = bot.get_channel(message.channel_id)
-            embedVar = discord.Embed(title=None,
-                                            description=f"**Uncached message deleted in {channel.jump_url}**\n{note}",
-                                            color=deletion_color,
-                                            timestamp=timestamp)
-            embedVar.set_footer(text=f"Message ID: {message.message_id}")
-    
-        if len(embed_list) == 0:
-            await log_channel.send(embed=embedVar) # This isn't strictly necessary but improves single-image display
+            embedVar = discord.Embed(title = None,
+                                         description = f"**Uncached message deleted in {channel.jump_url}**\n{note}",
+                                         color = deletion_color,
+                                         timestamp = timestamp)
+            embedVar.set_footer(text = f"Message ID: {message.message_id}")
+
+        if len(attach) == 0:
+            await log_channel.send(embed = embedVar)
         else:
-            embed_list.appendleft(embedVar)
-            await log_channel.send(embeds=list(embed_list))
-        if attach:
-            await log_channel.send(files=attach)
+            embedVar.add_field(name = "Files included", value = "See attachment(s) below")
+            await log_channel.send(embed = embedVar)
+            await log_channel.send(files = attach)
     except BaseException as e:
         note = "**Error occurred when logging deleted message**\n"
         embedVar = discord.Embed(title=None,
                                  description=f"{note+str(e)}",
                                  color=discord.Color.dark_gold(),
-                                 timestamp = timestamp
+                                 timestamp= timestamp
         )
         await log_channel.send(embed=embedVar)
 
