@@ -226,11 +226,11 @@ async def botkick(ctx: commands.Context, user: discord.Member):
                         icon_url=guild.icon)
     try:
         await user.send(embed=dm_embed)
-        asyncio.sleep(2)
+        await asyncio.sleep(2)
         await user.kick()
     except:
         await ctx.response.send_message(f"DM failed to send. {user.display_name} may have DMs turned off.")
-        asyncio.sleep(2)
+        await asyncio.sleep(2)
         await user.kick()
     
 
