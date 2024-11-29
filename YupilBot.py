@@ -11,7 +11,6 @@ import chat_exporter
 import io
 import requests
 import typing
-import asyncio
 
 # Set environment and read config file
 if os.getenv('YUPIL_ENV') != "prod":
@@ -204,6 +203,7 @@ async def dm(ctx: commands.Context, dm_message: str, user: discord.Member):
     except:
         await ctx.response.send_message(f"DM failed to send. {user.display_name} may have DMs turned off.", ephemeral=True)
 
+
 # Botkick command: standardized messaging and kick handling for likely bots
 @tree.command(
         name = "botkick",
@@ -211,37 +211,44 @@ async def dm(ctx: commands.Context, dm_message: str, user: discord.Member):
 )
 @ac.checks.has_role(permitted_role)
 @ac.describe(
-        user = "User to kick."
+        user = "User ID to kick."
 )
-async def botkick(ctx: commands.Context, user: discord.Member):
+async def botkick(ctx: commands.Context, user: str):
     """Standardized messaging and kick handling for likely bots."""
     timestamp = datetime.datetime.now()
     log_channel = bot.get_channel(int(config[os.getenv('YUPIL_ENV')]['priority_log_channel']))
+    welcome_chan = bot.get_channel(welcome_channel)
+    try:
+        member = await bot.fetch_user(int(user))
+    except:
+        await ctx.response.send_message(f"Member ID {user} not found - check that this is a valid member ID.", ephemeral=True)
+        return
     dm_message = "Discord has detected unusual activity on your account consistent with bot and/or spam messages. Please send in a support ticket if you believe this was done in error."
     dm_embed = discord.Embed(title="Mod Team Message",
-                               description=f"Hello {user.mention},\n\n{dm_message}\n\n ",
+                               description=f"Hello {member.mention},\n\n{dm_message}\n\n ",
                                color=yupil_color)
     dm_embed.set_footer(text="This is a Yupil Bot message on behalf of the Mod Team. If you would like to reach out to a member of the Mod Team, please create a ticket on the server using our ticket system.")
     dm_embed.set_author(name=guild.name,
                         icon_url=guild.icon)
     try:
-        await user.send(embed=dm_embed)
-        await asyncio.sleep(2)
-        await user.kick()
+        await member.send(embed=dm_embed)
         await ctx.response.send_message("DM sent and user kicked.", ephemeral=True, delete_after=1)
-    except:
-        await ctx.response.send_message(f"DM failed to send. {user.display_name} may have DMs turned off.", ephemeral=True)
-        await asyncio.sleep(2)
-        await user.kick()
+    except discord.HTTPException or discord.Forbidden:
+        await ctx.response.send_message(f"DM failed to send. {member.display_name} may have DMs turned off.", ephemeral=True)
+
+    async for m in welcome_chan.history(limit = 20):
+            if m.author.id == member.id:
+                await m.delete()
+    await guild.kick(member)
     
 
     embed = discord.Embed(title = "Suspected/Likely Bot Kicked",
-                          description = f"{user.mention} has been kicked due to unusual account activity consistent with bot and/or spam messages.",
-                          color = discord.Color.orange(),
+                          description = f"{member.mention} has been kicked due to unusual account activity consistent with bot and/or spam messages.",
+                          color = discord.Color.red(),
                           timestamp = timestamp)
-    avatar = await valid_avatar(user=user)
-    embed.set_author(name=user.display_name, icon_url=avatar)
-    embed.set_footer(text = f"Member: {user.display_name} | ID: {user.id}")
+    avatar = await valid_avatar(user=member)
+    embed.set_author(name=member.display_name, icon_url=avatar)
+    embed.set_footer(text = f"Member: {member.name} | ID: {member.id}")
     await log_channel.send(embed = embed)
 
 # Helper functions for restrict command
@@ -639,7 +646,7 @@ async def on_member_update(before: discord.Member, after: discord.Member):
     elif before.public_flags.spammer != after.public_flags.spammer:
         if after.public_flags.spammer:
             await log_spammer(after)
-    await check_excess_dms(after)       
+    await check_excess_dms(after)   
      
 # Log spammer detection
 async def log_spammer(member: discord.Member):
@@ -651,7 +658,7 @@ async def log_spammer(member: discord.Member):
                           timestamp = timestamp)
     avatar = await valid_avatar(user=member)
     embed.set_author(name=member.display_name, icon_url=avatar)
-    embed.set_footer(text = f"Member: {member.display_name} | ID: {member.id}")
+    embed.set_footer(text = f"Member: {member.name} | ID: {member.id}")
     await log_channel.send(embed = embed)
 
 async def check_excess_dms(member: discord.Member):
@@ -673,7 +680,7 @@ async def check_excess_dms(member: discord.Member):
                             timestamp = timestamp)
             avatar = await valid_avatar(user=member)
             embed.set_author(name=member.display_name, icon_url=avatar)
-            embed.set_footer(text = f"Member: {member.display_name} | ID: {member.id}")
+            embed.set_footer(text = f"Member: {member.name} | ID: {member.id}")
             await log_channel.send(embed = embed)
     except:
         note = f"**Error occurred when getting excessive DM status for {member.mention}**\n"
