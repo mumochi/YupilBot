@@ -643,7 +643,7 @@ async def on_member_join(member: discord.Member):
 async def on_member_update(before: discord.Member, after: discord.Member):
     if before.bot:
         return
-    if after.public_flags.spammer:
+    if (before.public_flags.spammer != after.public_flags.spammer) and after.public_flags.spammer:
         await log_spammer(after)
     await check_excess_dms(after)   
      
