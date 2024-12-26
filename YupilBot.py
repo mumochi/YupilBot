@@ -1,4 +1,7 @@
+import re
 import sys
+import time
+
 import discord
 from discord import app_commands as ac
 from discord.ext import commands
@@ -11,6 +14,7 @@ import chat_exporter
 import io
 import requests
 import typing
+import json
 
 # Set environment and read config file
 if os.getenv('YUPIL_ENV') != "prod":
@@ -27,6 +31,8 @@ helpdesk_channel = int(config[os.getenv('YUPIL_ENV')]['helpdesk_channel'])
 permitted_role = config[os.getenv('YUPIL_ENV')]['permitted_role']  # Only users with this role can use the commands
 max_messages = int(config[os.getenv('YUPIL_ENV')]['cache_size'])
 guild_obj = discord.Object(id = server_id)
+mc_channel = int(config[os.getenv('YUPIL_ENV')]['mc_whitelist_channel'])
+mc_whitelist_on = False
 
 # Fetch channels from channel ID
 async def get_channels(channel_id: int):
@@ -61,6 +67,7 @@ class BotClient(commands.Bot):
 intents = discord.Intents.default() 
 intents.message_content = True
 intents.members = True
+intents.messages = True
 bot = BotClient(command_prefix = '/', intents = intents, max_messages = max_messages)
 tree = bot.tree
 
@@ -626,6 +633,8 @@ async def on_message(message: discord.Message):
     """Listens for and responds to new messages."""
     if message.author.bot:
         return
+    elif mc_whitelist_on and message.channel.id == mc_channel:
+        await attempt_whitelist(message = message)
     elif message.channel.id == welcome_channel:
         await remove_duplicate_welcomes(message = message)
     elif isinstance(message.channel, discord.DMChannel):
@@ -847,6 +856,61 @@ async def on_raw_message_edit(message: discord.RawMessageUpdateEvent):
                                  timestamp=timestamp
         )
         await log_channel.send(embed=embedVar)
+
+async def attempt_whitelist(message: discord.Message):
+    valid_mc_username = re.search("^[a-zA-Z0-9_]{2,16}$", message.content)
+    if valid_mc_username:
+        playerdb_url = "https://playerdb.co/api/player/minecraft/"
+        mc_user = requests.get(playerdb_url + valid_mc_username.string, headers= {"user-agent":"admin@starmasaurus.com"}).json()
+        if mc_user['success'] == True:
+            user_details = {}
+            user_details['username'] = mc_user['data']['player']['username']
+            user_details['id'] = mc_user['data']['player']['id']
+            user_details['discord_id'] = message.author.id
+            user_details['discord_name'] = message.author.name
+            user_details_json = json.dumps(user_details)
+            attempts = 0
+            success = False
+            whitelist_outcome = ask_to_whitelist(user_details_json)
+            if whitelist_outcome.status_code == 200:
+                print("Yay")
+                await message.add_reaction("✅")
+                success = True
+            if not success:
+                print("Sadge")
+                await message.add_reaction("❌")
+                await message.reply(f"<@140672265250406400> , {message.author.name} is having issues whitelisting to the server. Can you take a look? Issue: Server Failure")
+        else:
+            print("No user found sadge")
+            await message.add_reaction("❌")
+            await message.reply(f"<@140672265250406400> , {message.author.name} is having issues whitelisting to the server. Can you take a look? Issue: User not found")
+    else:
+        print("username not valid")
+        await message.add_reaction("❌")
+def ask_to_whitelist(json_obj):
+    whitelist_outcome = requests.post("http://mc.yupil.com:25566", json=json_obj)
+    return whitelist_outcome
+
+
+@tree.command(
+        name = "toggle_mc_whitelist",
+        description = "Enables Automated MC Whitelisting."
+)
+@ac.checks.has_role(permitted_role)
+@ac.describe()
+async def toggle_mc_whitelist(ctx: discord.Interaction):
+    global mc_whitelist_on
+    timestamp = datetime.datetime.now()
+    mc_whitelist_on = not mc_whitelist_on
+    print(f"Automated MC whitelisting toggled by {ctx.user.display_name} to {str(mc_whitelist_on)}")
+    embedVar = discord.Embed(title=None,
+                             description=f"Automated MC whitelisting toggled by {ctx.user.display_name} to {str(mc_whitelist_on)}",
+                             color=discord.Color.fuchsia(),
+                             timestamp=timestamp
+                             )
+    await log_channel.send(embed=embedVar)
+
+
 
 @bot.event
 async def on_ready():
