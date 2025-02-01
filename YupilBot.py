@@ -270,6 +270,7 @@ async def create_ticket(name: str, guild: discord.Guild):
                                                               overwrites=overwrites)
         return new_channel
 
+      
 # PermissionOverwrite class with user and context-specific permissions
 HideChannelPerms = discord.PermissionOverwrite(read_messages=False, view_channel=False)
 ShowChannelPerms = discord.PermissionOverwrite(read_messages=True)
