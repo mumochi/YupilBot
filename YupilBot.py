@@ -683,7 +683,7 @@ async def check_excess_dms(member: discord.Member):
         'Authorization': f'Bot {token}'
     }
 
-    delay = random.randint(1, 60)
+    delay = random.randint(1, 5)
     await asyncio.sleep(delay)
     try:
         r = requests.get(url=url, headers=headers)
