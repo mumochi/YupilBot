@@ -1,6 +1,7 @@
 import re
 import sys
 import time
+import random
 
 import discord
 from discord import app_commands as ac
@@ -12,6 +13,7 @@ from dotenv import load_dotenv
 import datetime
 import chat_exporter
 import io
+import asyncio
 import requests
 import typing
 import json
@@ -653,7 +655,7 @@ async def on_member_join(member: discord.Member):
 async def on_member_update(before: discord.Member, after: discord.Member):
     if before.bot:
         return
-    if (before.public_flags.spammer != after.public_flags.spammer) and after.public_flags.spammer:
+    if after.public_flags.spammer:
         await log_spammer(after)
     await check_excess_dms(after)   
      
@@ -680,6 +682,9 @@ async def check_excess_dms(member: discord.Member):
         'Accept': 'application/json',
         'Authorization': f'Bot {token}'
     }
+
+    delay = random.randint(1, 60)
+    await asyncio.sleep(delay)
     try:
         r = requests.get(url=url, headers=headers)
         if r.json()[dm_flag] is not None:
@@ -691,10 +696,10 @@ async def check_excess_dms(member: discord.Member):
             embed.set_author(name=member.display_name, icon_url=avatar)
             embed.set_footer(text = f"Member: {member.name} | ID: {member.id}")
             await log_channel.send(embed = embed)
-    except:
-        note = f"**Error occurred when getting excessive DM status for {member.mention}**\n"
+    except BaseException as e:
+        note = f"**Error occurred when getting excessive DM status for {member.mention}**:\n"
         embed = discord.Embed(title=None,
-                                 description=note,
+                                 description=f"{note+str(e)}",
                                  color=discord.Color.dark_gold(),
                                  timestamp= timestamp
         )
