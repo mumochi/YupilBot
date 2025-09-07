@@ -1,0 +1,6 @@
+.env
+.env.local
+.vscode
+config.ini
+discord.log
+yupilbot
