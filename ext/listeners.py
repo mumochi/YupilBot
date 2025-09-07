@@ -4,7 +4,12 @@ import datetime as dt
 import discord
 from discord.ext import commands, tasks
 import discord.app_commands as ac
+import asyncio
 import requests
+
+class RoleSnowflake(discord.abc.Snowflake):
+    def __init__(self, id):
+        self.id = id
 
 class ListenCog(commands.Cog):
     def __init__(self, bot):
@@ -63,11 +68,11 @@ class ListenCog(commands.Cog):
 
     # Check roles for guild members who recently joined
     async def add_missing_roles(self, member: discord.Member):
-        role_ids = (role_id for role.id in member.roles)
+        role_ids = (role.id for role in member.roles)
         if self.all_role not in role_ids:
-            member.add_roles(discord.Snowflake(id=self.all_role))
+            await member.add_roles(RoleSnowflake(id=self.all_role))
         if self.vc_role not in role_ids:
-            member.add_roles(discord.Snowflake(id=self.vc_role))
+            await member.add_roles(RoleSnowflake(id=self.vc_role))
 
     # Duplicate welcomes is purely a public-facing cosmetic issue; can deprecate if welcome channel is hidden
     async def remove_duplicate_welcomes(self, message: discord.Message):
@@ -152,17 +157,19 @@ class ListenCog(commands.Cog):
 
     # Run daily checks at EST 12:00/UTC 16:00
     # NOTE: experimental and might also require running fetch_members() instead of calling guild.members
-    @tasks.loop(time=dt.time(hour=16, tzinfo=dt.timezone.utc))
+    @tasks.loop(time=dt.time(hour=16, minute=25, tzinfo=dt.timezone.utc))
     async def run_member_checks(self):
         time_check = dt.datetime.now(dt.timezone.utc) - dt.timedelta(hours=25)
-        guild = self.bot.get_guild(self.bot.config.server_id)
+        guild = self.bot.get_guild(int(self.bot.config.server_id))
         new_members = (member for member in guild.members if member.joined_at > time_check)
         for member in new_members:
             await self.add_missing_roles(member=member)
+            await asyncio.sleep(1) # Help avoid rate-limiting
 
         spammers = (member for member in guild.members if member.public_flags.spammer)
         for member in spammers:
             await self.log_spammer(member=member)
+            await asyncio.sleep(1) # Help avoid rate-limiting
 
     # Log message deletions
     @commands.Cog.listener()
