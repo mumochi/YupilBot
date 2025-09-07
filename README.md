@@ -41,3 +41,34 @@ max_messages = int(config[os.getenv('YUPIL_ENV')]['cache_size'])
 ```
 
 See the templates directory for env and config templates.
+
+## Project tree
+```
+├── config.ini
+├── discord.log
+├── .env
+├── .env.local
+├── ext
+│   ├── communication.py
+│   ├── config.py
+│   ├── helpers.py
+│   ├── listeners.py
+│   ├── meta.py
+│   ├── modtools.py
+│   └── __pycache__
+│       ├── communication.cpython-313.pyc
+│       ├── config.cpython-313.pyc
+│       ├── helpers.cpython-313.pyc
+│       ├── listeners.cpython-313.pyc
+│       ├── meta.cpython-313.pyc
+│       └── modtools.cpython-313.pyc
+├── .gitignore
+├── LICENSE
+├── main.py
+├── README.md
+├── requirements.txt
+└── templates
+    ├── config.ini
+    ├── .env
+    └── launch.json
+```
