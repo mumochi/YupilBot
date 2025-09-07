@@ -36,7 +36,8 @@ config = configparser.ConfigParser()
 config.read("config.ini")
 
 welcome_channel = int(config[os.getenv('YUPIL_ENV')]['welcome_channel'])
-helpdesk_channel = int(config[os.getenv('YUPIL_ENV')]['helpdesk_channel'])
 permitted_role = config[os.getenv('YUPIL_ENV')]['permitted_role']  # Only users with this role can use the commands
 max_messages = int(config[os.getenv('YUPIL_ENV')]['cache_size'])
 ```
+
+See the templates directory for env and config templates.
