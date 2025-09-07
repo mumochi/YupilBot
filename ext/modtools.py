@@ -137,7 +137,7 @@ class ModCog(commands.Cog):
 
         elif target_channel is None and target_member is not None:
             # Experimental, may break if Discord changes API spec
-            url = f"https://discord.com/api/v10/guilds/{self.bot.config.server_id}/messages/search?author_id={target_member.id}&limit={messages}"
+            url = f"https://discord.com/api/v10/guilds/{self.bot.config.server_id}/messages/search?author_id={target_member.id}&sort_by=timestamp&sort_order=desc&limit={messages}"
             headers = {
                 'Accept': 'application/json',
                 'Authorization': f'Bot {self.bot.config.token}'
