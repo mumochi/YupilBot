@@ -242,45 +242,44 @@ class ListenCog(commands.Cog):
         default_url = self.bot.helpers.default_url
         edit_color = self.bot.helpers.edit_color
 
-        if (timestamp - message.message.created_at).days > MAX_AGE or message.cached_message.author.bot:
+        if (timestamp - message.message.created_at).days > MAX_AGE or message.message.author.bot:
             return
         try:
             if message.cached_message is not None:
                 before = await self.truncate_text(message.cached_message.content)
                 after = await self.truncate_text(message.message.content)
                 user_link = message.cached_message.author.mention
-                embedVar = discord.Embed(title=None,
+                embed = discord.Embed(title=None,
                                             description=f"**Message sent by {user_link} edited in {message.cached_message.jump_url}**",
                                             color=edit_color,
                                             timestamp=timestamp)
                 if message.cached_message.author.avatar:
-                    embedVar.set_author(name=message.cached_message.author,
+                    embed.set_author(name=message.cached_message.author,
                                             icon_url=message.cached_message.author.avatar.url)
-                embedVar.set_footer(text=f"Author: {message.cached_message.author} | ID: {message.cached_message.author.id}")
-                embedVar.add_field(name="Before:", value=before, inline=False)
-                embedVar.add_field(name="After:", value=after, inline=False)
-                await log_channel.send(embed=embedVar)
+                embed.set_footer(text=f"Author: {message.cached_message.author} | ID: {message.cached_message.author.id}")
+                embed.add_field(name="Before:", value=before, inline=False)
+                embed.add_field(name="After:", value=after, inline=False)
+                await log_channel.send(embed=embed)
             else:
-                message_channel = await bot.fetch_channel(message.channel_id)
+                message_channel = await self.bot.fetch_channel(message.channel_id)
                 message = await message_channel.fetch_message(message.message_id)
-                after = await truncate_text(message.content)
-                if not message.author.bot:
-                    embedVar = discord.Embed(title=None,
+                after = await self.truncate_text(message.content)
+                embed = discord.Embed(title=None,
                                             description=f"**Message sent by {message.author.mention} edited in {message.jump_url}**",
                                             color=edit_color,
                                             timestamp=timestamp)
-                    embedVar.set_footer(text=f"Author: {message.author} | ID: {message.author.id}")
-                    embedVar.add_field(name="Before:", value="`Message uncached`", inline=False)
-                    embedVar.add_field(name="After:", value=after, inline=False)
-                await log_channel.send(embed=embedVar)
+                embed.set_footer(text=f"Author: {message.author} | ID: {message.author.id}")
+                embed.add_field(name="Before:", value="`Message uncached`", inline=False)
+                embed.add_field(name="After:", value=after, inline=False)
+                await log_channel.send(embed=embed)
         except BaseException as e:
             note = "**Error occurred when logging edited message**\n"
-            embedVar = discord.Embed(title=None,
+            embed = discord.Embed(title=None,
                                     description=f"{note+str(e)}",
                                     color=discord.Color.dark_gold(),
                                     timestamp=timestamp
             )
-            await log_channel.send(embed=embedVar)
+            await log_channel.send(embed=embed)
 
 async def setup(bot):
     await bot.add_cog(ListenCog(bot=bot))
