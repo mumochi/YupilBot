@@ -36,6 +36,8 @@ async def on_ready():
     print(f"Logged in as {bot.user.name}")
     print(f"Loaded extensions: {list(bot.extensions.keys())}")
     print("---------------------------------")
+    cog = bot.get_cog("ListenCog")
+    await cog.run_member_checks.start()
 
 handler = logging.FileHandler(filename="discord.log", encoding="utf-8", mode="w")
 bot.run(token=bot.config.token, log_handler=handler)
