@@ -137,6 +137,28 @@ class ListenCog(commands.Cog):
             await self.log_spammer(after)
         await self.check_excess_dms(after)  
 
+    
+    # Listen for voice state changes
+    @commands.Cog.listener()
+    async def on_voice_state_update(self, member: discord.Member, before: discord.VoiceState, after: discord.VoiceState):
+        if after.self_video is True and before.channel == after.channel:
+            vc_channel = after.channel.jump_url
+            await member.move_to(channel=None) # effect: kicks from VC
+            log_channel = self.bot.get_channel(self.bot.config.log_channel)  
+            timestamp = dt.datetime.now()
+            message = "This is an automated notification to let you know that webcam use is not permitted on this server. You are welcome to rejoin the voice chat and participate as you were."
+            embed = discord.Embed(title="Mod Team Message", description=f"Hello {member.mention},\n\n{message}\n\n ", color=self.bot.helpers.yupil_color)
+            embed.set_footer(text="This is a Yupil Bot message on behalf of the Mod Team. If you would like to reach out to a member of the Mod Team, please create a ticket on the server using our ticket system.")
+            embed.set_author(name=member.guild.name, icon_url=member.guild.icon)
+            try:
+                await member.send(embed=embed)
+            except:
+                embed.set_footer(text="DM unable to be sent.")
+                
+            embed.title = f"{member.display_name} kicked from {vc_channel}"
+            message_log = await log_channel.send(embed=embed)
+
+
     # Listen for new message events
     @commands.Cog.listener()
     async def on_message(self, message: discord.Message):
