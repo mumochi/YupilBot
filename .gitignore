@@ -4,3 +4,4 @@
 config.ini
 discord.log
 yupilbot
+__pycache__
