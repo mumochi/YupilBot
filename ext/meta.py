@@ -1,0 +1,63 @@
+# Module for manual loading, reloading, and unloading extensions as well as syncing commands
+
+import os
+import discord
+from discord import app_commands as ac
+from discord.ext import commands
+
+# List acceptable parameter values
+# Doesn't allow config.py, helpers.py, or meta.py to be actioned because this will break dynamic extensions, forcing a bot restart
+ext_list = (ext.rstrip(".py") for ext in os.listdir("./ext") if ext.endswith(".py") and ext not in ("config.py", "helpers.py", "meta.py"))
+act_list = ("load", "reload", "unload")
+
+class ExtCog(commands.Cog):
+    def __init__(self, bot):
+        self.bot = bot
+
+    @ac.command(
+        name="extensions", 
+        description="Manage Yupil Bot extensions. Does not require a bot restart.")
+    @ac.describe(
+        extension="Name of extension",
+        action="Action to perform: load, reload, or unload"
+    )
+    @ac.choices(
+        extension=[ac.Choice(name=ext, value=ext) for ext in ext_list],
+        action=[ac.Choice(name=act, value=act) for act in act_list])
+    async def extensions(self, interaction: discord.Interaction, extension: str, action: str):
+        extension = extension.rstrip(".py")
+        if action == "load":
+            try:
+                await self.bot.load_extension(f"ext.{extension}")
+                await interaction.response.send_message(f"Loaded extension: {extension}", ephemeral=True)
+            except commands.ExtensionAlreadyLoaded:
+                await interaction.response.send_message(f"\"{extension}\" extension is already loaded.", ephemeral=True)
+        elif action == "reload":
+            try:
+                await self.bot.reload_extension(f"ext.{extension}")
+                await interaction.response.send_message(f"Reloaded extension: {extension}", ephemeral=True)
+            except commands.ExtensionNotLoaded:
+                await interaction.response.send_message(f"\"{extension}\" extension is not loaded. Run this command with the load action to load.", ephemeral=True)
+        else:
+            try:
+                await self.bot.unload_extension(f"ext.{extension}")
+                await interaction.response.send_message(f"Unloaded extension: {extension}", ephemeral=True)
+            except commands.ExtensionNotLoaded:
+                await interaction.response.send_message(f"\"{extension}\" extension is not loaded.", ephemeral=True)
+    
+class SyncCog(commands.Cog):
+    def __init__(self, bot):
+        self.bot = bot
+
+    @ac.command(
+        name="sync",
+        description="Manually syncs all bot commands. Use to update commands without restarting the bot."
+    )
+    async def sync(self, interaction: discord.Interaction):
+        await self.bot.tree.sync()
+        await interaction.response.send_message("Commands synced.", ephemeral=True)
+
+
+async def setup(bot):
+    await bot.add_cog(ExtCog(bot=bot))
+    await bot.add_cog(SyncCog(bot=bot))
