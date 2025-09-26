@@ -141,7 +141,7 @@ class ListenCog(commands.Cog):
     # Listen for voice state changes
     @commands.Cog.listener()
     async def on_voice_state_update(self, member: discord.Member, before: discord.VoiceState, after: discord.VoiceState):
-        if after.self_video is True and before.channel == after.channel:
+        if self.bot.config.disable_webcams and after.self_video is True and before.channel == after.channel:
             vc_channel = after.channel.jump_url
             await member.move_to(channel=None) # effect: kicks from VC
             log_channel = self.bot.get_channel(self.bot.config.log_channel)  
