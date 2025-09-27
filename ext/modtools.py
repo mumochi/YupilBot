@@ -117,17 +117,18 @@ class ModCog(commands.Cog):
     async def purge(
         self, interaction: discord.Interaction, messages: int, 
         target_channel: discord.TextChannel=None, target_member: discord.Member=None):
+        
+        await interaction.response.defer(ephemeral=True, thinking=True)
 
         if messages > 50:
             messages = 50
 
         if target_channel is not None and target_member is None:
             await target_channel.purge(limit=messages, bulk=True) # Use bulk to help avoid rate-limiting
-            await interaction.response.send_message(f"Purged {messages} messages from {target_channel.jump_url}.", ephemeral=True)
+            await interaction.followup.send(f"Purged {messages} messages from {target_channel.jump_url}.", ephemeral=True)
 
         elif target_channel is not None and target_member is not None:
             i = 0
-            await interaction.response.defer(ephemeral=True, thinking=True)
             async for m in target_channel.history(limit=100):
                 if i < messages and m.author == target_member:
                     await m.delete()
@@ -146,7 +147,6 @@ class ModCog(commands.Cog):
             try:
                 req = requests.get(url=url, headers=headers)
                 req = req.json()["messages"]
-                await interaction.response.defer(ephemeral=True, thinking=True)
                 for m in req:
                     channel = self.bot.get_channel(int(m[0]["channel_id"]))
                     message = MessageSnowflake(id=int(m[0]["id"]))
@@ -154,10 +154,10 @@ class ModCog(commands.Cog):
                 await interaction.followup.send(f"{messages} messages from {target_member.display_name} purged.", ephemeral=True)
                 await self.log_dm(interaction=interaction, action="purge", member=target_member, message=None)
             except BaseException as e:
-                await interaction.response.send_message(
+                await interaction.followup.send(
                     f"Failed to purge messages. This is an experimental feature; please let us know if it failed.\nError: {str(e)}", ephemeral=True)
         else:
-            await interaction.response.send_message("Please specify a channel and/or member to purge.", ephemeral=True)
+            await interaction.followup.send("Please specify a channel and/or member to purge.", ephemeral=True)
 
     @ac.command(
         name="yb-softban",
