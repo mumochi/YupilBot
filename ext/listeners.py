@@ -126,8 +126,12 @@ class ListenCog(commands.Cog):
     # Listen for new member join and member update events
     @commands.Cog.listener()
     async def on_member_join(self, member: discord.Member):
+        await member.add_roles(RoleSnowflake(id=self.all_role))
         if member.public_flags.spammer:
             await self.log_spammer(member=member)
+        # add VC role after 15 minute delay
+        await asyncio.sleep(15*60)
+        await member.add_roles(RoleSnowflake(id=self.vc_role))
 
     @commands.Cog.listener()
     async def on_member_update(self, before: discord.Member, after: discord.Member):
