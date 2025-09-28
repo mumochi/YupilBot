@@ -30,7 +30,7 @@ class ListenCog(commands.Cog):
         embed.set_footer(text = f"Member: {member.name} | ID: {member.id}")
         # Avoid repeating message log
         async for m in priority_log_channel.history(limit=1):
-            if m.embeds[0].footer.text is None or str(member.id) not in m.embeds[0].footer.text:
+            if m.embeds[0].footer.text is None or str(member.id) not in m.embeds[0].footer.text or (str(member.id) in m.embeds[0].footer.text and embed.description != m.embeds[0].description):
                 await priority_log_channel.send(embed=embed)
 
     async def check_excess_dms(self, member: discord.Member):
@@ -55,7 +55,7 @@ class ListenCog(commands.Cog):
                 embed.set_footer(text=f"Member: {member.name} | ID: {member.id}")
                 # Avoid repeating message log
                 async for m in priority_log_channel.history(limit=1):
-                    if m.embeds[0].footer.text is None or str(member.id) not in m.embeds[0].footer.text:
+                    if m.embeds[0].footer.text is None or str(member.id) not in m.embeds[0].footer.text or (str(member.id) in m.embeds[0].footer.text and embed.description != m.embeds[0].description):
                         await priority_log_channel.send(embed=embed)
         except BaseException as e:
             note = f"**Error occurred when getting excessive DM status for {member.mention}**:\n{str(e)}"
