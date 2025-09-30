@@ -1,6 +1,7 @@
 # Module for manual loading, reloading, and unloading extensions as well as syncing commands
 
 import os
+import sys
 import discord
 from discord import app_commands as ac
 from discord.ext import commands
