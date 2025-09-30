@@ -1,2 +1,7 @@
-/.env
-/.env.local
+.env
+.env.local
+.vscode
+config.ini
+discord.log
+yupilbot
+__pycache__

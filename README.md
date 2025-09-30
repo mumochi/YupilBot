@@ -1,35 +1,74 @@
-# YupilBot
-Custom Discord bot with basic chat functions, implemented with slash commands
+# YB-rewrite
+Rewrite of the original YupilBot
 
-### Features
-1. Chat command to send a message to a text channel on a server
-   * Intended as a moderation tool to send moderation team messages to the server from a single "anonymous" bot account
+## Configuration
+YupilBot uses two libraries to load in sensitive data such as bot keys and to initialize guild-specific settings such as channel IDs:
+* [dotenv](https://pypi.org/project/python-dotenv/)
+* [configparser](https://docs.python.org/3/library/configparser.html)
 
-2. DM command to send direct message to specific member on a server with simple logging
-   * Intended as a moderation tool to send DMs to individual members from a single "anonymous" bot account
+A minimal example shows how they work:
+```python
+import os
+import configparser
+from dotenv import load_dotenv
 
-3. Chat commands to restrict and unrestrict a member's ability to view text and voice channels
-   * Intended as a moderation tool to isolate members - unable to see or interact with text and voice channels
-   * Also unable to view server member list, which can prevent unwanted DMs from suspected bots or malicious users
-   * Can be used in conjunction with ticket tool features to subsequently create a specific channel
-     to facilitate discussions with the moderation team while maintaining isolation
+if os.getenv("YUPIL_ENV") != "prod":
+    load_dotenv(".env.local")
+else:
+    load_dotenv(".env")
+```
 
-4. Translation command leveraging the DeepL API to translate text to English (EN-US)
-   * Intended to provide robust one-way translation of non-English text to English
-   * Free version of the DeepL API allows for up to 500,000 translated characters per month
-     
-5. Transcript creation
+In this first code snippet, `os.getenv` searches the Python launch environment for the `YUPIL_ENV` key. We define this environmental variable in a VS Code debugging launch.json file. If running outside of a debugging environment, you will need to set the environment variable before running the bot:
+```shell
+export YUPIL_ENV="prod"
+python3 main.py
+```
 
-6. Ticket tool system
+The .env and .env.local files contain sensitive information like bot keys. Do not expose these publicly. With `YUPIL_ENV` set, `dotenv` can now read one of the .env files, giving us the server ID and bot token:
+```python
+server_id = os.getenv("DISCORD_SERVER_ID")
+token = os.getenv("DISCORD_TOKEN")
+```
 
-7. Logging of edited and deleted messages
+The remaining guild-specific variables are set in a config.ini file and read into the program using `configparser`:
+```python
+config = configparser.ConfigParser()
+config.read("config.ini")
 
-8. More!! Will be updating documentation in future updates.
+welcome_channel = int(config[os.getenv('YUPIL_ENV')]['welcome_channel'])
+permitted_role = config[os.getenv('YUPIL_ENV')]['permitted_role']  # Only users with this role can use the commands
+max_messages = int(config[os.getenv('YUPIL_ENV')]['cache_size'])
+```
 
+See the templates directory for env and config templates.
 
-### Setup
-* Create a .env file at the same level as YupilBot.py with the keys: DISCORD_API, DEEPL_API_TOKEN, DISCORD_SERVER_ID. Insert your generated keys for your Discord application/bot key and DeepL API key into the relevant fields.
-* Optionally create a .env.local file with the same key names as the .env but with the necessary keys for a different server.
-* Changes the values in config.ini for your server. prod is the default config, additional configs can be defined and used.
-* You may need to generate a python requirements.txt file from the source if you do not have all libraries already installed.
-* Run YupilBot.py
+## Project tree
+```
+├── config.ini
+├── discord.log
+├── .env
+├── .env.local
+├── ext
+│   ├── communication.py
+│   ├── config.py
+│   ├── helpers.py
+│   ├── listeners.py
+│   ├── meta.py
+│   ├── modtools.py
+│   └── __pycache__
+│       ├── communication.cpython-313.pyc
+│       ├── config.cpython-313.pyc
+│       ├── helpers.cpython-313.pyc
+│       ├── listeners.cpython-313.pyc
+│       ├── meta.cpython-313.pyc
+│       └── modtools.cpython-313.pyc
+├── .gitignore
+├── LICENSE
+├── main.py
+├── README.md
+├── requirements.txt
+└── templates
+    ├── config.ini
+    ├── .env
+    └── launch.json
+```
