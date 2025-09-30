@@ -231,7 +231,7 @@ class ListenCog(commands.Cog):
                             embed.add_field(name=f"Attachment {i}/{num_attachments}:", value=note, inline=False)
                     else:
                         note = f"Unable to save attachment of unsupported type `{attachment.content_type}`, filename: **{attachment.filename}**"
-                        embedVar.add_field(name=f"Attachment {i}/{num_attachments}:", value=note, inline=False)
+                        embed.add_field(name=f"Attachment {i}/{num_attachments}:", value=note, inline=False)
                     i += 1
 
             else:
