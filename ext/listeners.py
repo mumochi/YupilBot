@@ -128,6 +128,7 @@ class ListenCog(commands.Cog):
     async def on_member_join(self, member: discord.Member):
         await member.add_roles(RoleSnowflake(id=self.all_role))
         if member.public_flags.spammer:
+            await asyncio.sleep(1) # Help avoid rate-limiting
             await self.log_spammer(member=member)
         # add VC role after 15 minute delay
         await asyncio.sleep(15*60)
@@ -138,7 +139,9 @@ class ListenCog(commands.Cog):
         if before.bot:
             return
         if after.public_flags.spammer:
+            await asyncio.sleep(1) # Help avoid rate-limiting
             await self.log_spammer(after)
+        await asyncio.sleep(1) # Help avoid rate-limiting
         await self.check_excess_dms(after)  
 
     
