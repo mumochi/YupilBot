@@ -57,7 +57,25 @@ class SyncCog(commands.Cog):
         await self.bot.tree.sync()
         await interaction.response.send_message("Commands synced.", ephemeral=True)
 
+class KillCog(commands.Cog):
+    def __init__(self, bot):
+        self.bot = bot
+
+    @ac.command(
+        name = "kill_me",
+        description = "You horrible person. What did the lil guy ever do to you?!"
+        )
+    @ac.describe(
+            reason = "Motive for the murder."
+    )
+    async def kill_me(self, interaction: discord.Interaction, reason: str):
+        """Terminates the program and logs the reason."""
+        log_channel = self.bot.get_channel(self.bot.config.log_channel)
+        await log_channel.send(f"{interaction.user.global_name} murdered Yupil Bot for: {reason} :yuyixDeadge:")
+        sys.exit(reason)
+
 
 async def setup(bot):
     await bot.add_cog(ExtCog(bot=bot))
     await bot.add_cog(SyncCog(bot=bot))
+    await bot.add_cog(KillCog(bot=bot))
