@@ -72,7 +72,8 @@ class KillCog(commands.Cog):
     async def kill_me(self, interaction: discord.Interaction, reason: str):
         """Terminates the program and logs the reason."""
         log_channel = self.bot.get_channel(self.bot.config.log_channel)
-        await log_channel.send(f"{interaction.user.global_name} murdered Yupil Bot for: {reason} :yuyixDeadge:")
+        deadge = [e for e in self.bot.emoji if e.name == "yuyixDeadge"]
+        await log_channel.send(f"{interaction.user.global_name} murdered Yupil Bot for: {reason} <:{deadge.name}:{deadge.id}>")
         sys.exit(reason)
 
 
