@@ -5,7 +5,7 @@ import configparser
 from dotenv import load_dotenv
 
 class ConfigManager:
-    def __init__(self, config_file):
+    def __init__(self, config_file: str) -> None:
         yupil_env = os.getenv("YUPIL_ENV")
         if yupil_env != "prod":
             load_dotenv(".env.local")

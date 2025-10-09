@@ -1,24 +1,24 @@
 # Module for listening and responding to events
 
-import datetime as dt
 import discord
 from discord.ext import commands, tasks
 import discord.app_commands as ac
+import datetime as dt
 import asyncio
 import requests
 
 class RoleSnowflake(discord.abc.Snowflake):
-    def __init__(self, id):
+    def __init__(self, id: int) -> None:
         self.id = id
 
 class ListenCog(commands.Cog):
-    def __init__(self, bot):
+    def __init__(self, bot: commands.Bot) -> None:
         self.bot = bot
         self.all_role = self.bot.config.all_role
         self.vc_role = self.bot.config.vc_role
 
     # Log spammer detection
-    async def log_spammer(self, member: discord.Member):
+    async def log_spammer(self, member: discord.Member) -> None:
         timestamp = dt.datetime.now()
         priority_log_channel = self.bot.get_channel(self.bot.config.priority_log_channel)
         embed = discord.Embed(title="Potential Spammer Detected",
@@ -33,7 +33,7 @@ class ListenCog(commands.Cog):
             if m.embeds[0].footer.text is None or str(member.id) not in m.embeds[0].footer.text or (str(member.id) in m.embeds[0].footer.text and embed.description != m.embeds[0].description):
                 await priority_log_channel.send(embed=embed)
 
-    async def check_excess_dms(self, member: discord.Member):
+    async def check_excess_dms(self, member: discord.Member) -> None:
         # Experimental feature; may break in the future if Discord API spec changes
         timestamp = dt.datetime.now()
         priority_log_channel = self.bot.get_channel(self.bot.config.priority_log_channel)
@@ -67,7 +67,7 @@ class ListenCog(commands.Cog):
             await priority_log_channel.send(embed=embed)
 
     # Check roles for guild members who recently joined
-    async def add_missing_roles(self, member: discord.Member):
+    async def add_missing_roles(self, member: discord.Member) -> None:
         role_ids = (role.id for role in member.roles)
         if self.all_role not in role_ids:
             await member.add_roles(RoleSnowflake(id=self.all_role))
@@ -75,7 +75,7 @@ class ListenCog(commands.Cog):
             await member.add_roles(RoleSnowflake(id=self.vc_role))
 
     # Duplicate welcomes is purely a public-facing cosmetic issue; can deprecate if welcome channel is hidden
-    async def remove_duplicate_welcomes(self, message: discord.Message):
+    async def remove_duplicate_welcomes(self, message: discord.Message) -> None:
         """Removes duplicate welcome messages."""
         if "just boosted the server!" in message.content:
             return
@@ -84,7 +84,7 @@ class ListenCog(commands.Cog):
                 if m.author.id == message.author.id and m.id != message.id and ("just boosted the server!" not in m.content):
                     await m.delete()
 
-    async def truncate_text(self, text: str):
+    async def truncate_text(self, text: str) -> None:
         """Checks if input text is greater than maximum embed field length and truncates text if True."""
         MAX_LEN = 1000
         if len(text) > MAX_LEN:
@@ -93,7 +93,7 @@ class ListenCog(commands.Cog):
 
     # Log DM replies
     # TODO: add user blocklist to db in case of unwanted responses/abuse
-    async def log_dm_reply(self, message: discord.Message):
+    async def log_dm_reply(self, message: discord.Message) -> None:
         """Logs DMs received by the bot from users."""
         timestamp = dt.datetime.now()
         log_channel = self.bot.get_channel(self.bot.config.log_channel)
@@ -125,7 +125,7 @@ class ListenCog(commands.Cog):
 
     # Listen for new member join and member update events
     @commands.Cog.listener()
-    async def on_member_join(self, member: discord.Member):
+    async def on_member_join(self, member: discord.Member) -> None:
         await member.add_roles(RoleSnowflake(id=self.all_role))
         if member.public_flags.spammer:
             await asyncio.sleep(1) # Help avoid rate-limiting
@@ -135,7 +135,7 @@ class ListenCog(commands.Cog):
         await member.add_roles(RoleSnowflake(id=self.vc_role))
 
     @commands.Cog.listener()
-    async def on_member_update(self, before: discord.Member, after: discord.Member):
+    async def on_member_update(self, before: discord.Member, after: discord.Member) -> None:
         if before.bot:
             return
         if after.public_flags.spammer:
@@ -147,7 +147,7 @@ class ListenCog(commands.Cog):
     
     # Listen for voice state changes
     @commands.Cog.listener()
-    async def on_voice_state_update(self, member: discord.Member, before: discord.VoiceState, after: discord.VoiceState):
+    async def on_voice_state_update(self, member: discord.Member, before: discord.VoiceState, after: discord.VoiceState) -> None:
         if self.bot.config.disable_webcams and after.self_video is True and before.channel == after.channel:
             vc_channel = after.channel.jump_url
             await member.move_to(channel=None) # effect: kicks from VC
@@ -168,7 +168,7 @@ class ListenCog(commands.Cog):
 
     # Listen for new message events
     @commands.Cog.listener()
-    async def on_message(self, message: discord.Message):
+    async def on_message(self, message: discord.Message) -> None:
         """Listens for and responds to new messages."""
         log_channel = self.bot.get_channel(self.bot.config.log_channel)
         if message.author.bot:
@@ -186,8 +186,8 @@ class ListenCog(commands.Cog):
 
     # Run daily checks at EST 12:00/UTC 16:00
     # NOTE: experimental and might also require running fetch_members() instead of calling guild.members
-    @tasks.loop(time=dt.time(hour=16, minute=25, tzinfo=dt.timezone.utc))
-    async def run_member_checks(self):
+    @tasks.loop(time=dt.time(hour=16, minute=00, tzinfo=dt.timezone.utc))
+    async def run_member_checks(self) -> None:
         time_check = dt.datetime.now(dt.timezone.utc) - dt.timedelta(hours=25)
         guild = self.bot.get_guild(int(self.bot.config.server_id))
         new_members = (member for member in guild.members if member.joined_at > time_check)
@@ -202,7 +202,7 @@ class ListenCog(commands.Cog):
 
     # Log message deletions
     @commands.Cog.listener()
-    async def on_raw_message_delete(self, message: discord.RawMessageDeleteEvent):
+    async def on_raw_message_delete(self, message: discord.RawMessageDeleteEvent) -> None:
         """Listens for and logs non-bot message deletions."""
         timestamp = dt.datetime.now()
         log_channel = self.bot.get_channel(self.bot.config.log_channel)
@@ -263,7 +263,7 @@ class ListenCog(commands.Cog):
 
     # Log message edits
     @commands.Cog.listener()
-    async def on_raw_message_edit(self, message: discord.RawMessageUpdateEvent):
+    async def on_raw_message_edit(self, message: discord.RawMessageUpdateEvent) -> None:
         """Listens for and logs non-bot message updates."""
         timestamp = dt.datetime.now(dt.timezone.utc)
         MAX_AGE = 7 # Don't log edits older than this number, in days
@@ -310,5 +310,5 @@ class ListenCog(commands.Cog):
             )
             await log_channel.send(embed=embed)
 
-async def setup(bot):
+async def setup(bot: commands.Bot) -> None:
     await bot.add_cog(ListenCog(bot=bot))
