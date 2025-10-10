@@ -88,8 +88,25 @@ class ListenCog(commands.Cog):
         """Checks if input text is greater than maximum embed field length and truncates text if True."""
         MAX_LEN = 1000
         if len(text) > MAX_LEN:
-            text = "".join([text[0:(MAX_LEN-1)], " [...]"])
+            text = "".join([text[0:(MAX_LEN-10)], " [...]"])
         return text
+
+    # New member joing logging
+    async def new_member(self, member: discord.Member) -> None:
+        """Sends an embed log for new member join events."""
+        timestamp = dt.datetime.now()
+        account_age = dt.datetime.now(tz=dt.timezone.utc) - member.created_at
+        log_channel = self.bot.get_channel(self.bot.config.log_channel)
+        default_url = self.bot.helpers.default_url
+        embed = discord.Embed(description=f"{member.mention} {member.display_name}\n**Account Age**\n{str(account_age)}",
+                            url=default_url,
+                            color=discord.Color.green(),
+                            timestamp=timestamp)     
+        avatar = await self.bot.helpers.valid_avatar(member=member)
+        embed.set_author(name="Member Joined", icon_url=avatar)
+        embed.set_thumbnail(url=avatar)
+        embed.set_footer(text=f"ID: {member.id}")
+        await log_channel.send(embed=embed)
 
     # Log DM replies
     # TODO: add user blocklist to db in case of unwanted responses/abuse
@@ -126,6 +143,7 @@ class ListenCog(commands.Cog):
     # Listen for new member join and member update events
     @commands.Cog.listener()
     async def on_member_join(self, member: discord.Member) -> None:
+        await self.new_member(member=member)
         await member.add_roles(RoleSnowflake(id=self.all_role))
         if member.public_flags.spammer:
             await asyncio.sleep(1) # Help avoid rate-limiting
