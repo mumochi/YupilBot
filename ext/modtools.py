@@ -46,6 +46,8 @@ class ModCog(commands.Cog):
                 await interaction.response.send_message(f"DM sent to {member.display_name}. View log: {message_log.jump_url}", ephemeral=True)
             except:
                 await interaction.response.send_message(f"DM failed to send. {member.display_name} may have DMs turned off.", ephemeral=True)
+        else:
+            await interaction.response.send_message(f"`{action}` applied to {member.display_name}")
 
     async def toggle_channel_visibility(self, member: discord.Member, toggle: str) -> None:
         """Sets all channel overrides to restrict visibility for user."""
@@ -81,7 +83,6 @@ class ModCog(commands.Cog):
         penalty = dt.timedelta(minutes=duration)
         await member.timeout(penalty, reason=reason)
         await self.log_dm(interaction=interaction, action="timeout", message=reason, member=member)
-        await interaction.response.send_message(f"{member.display_name} timed out for {duration} seconds.", ephemeral=True)
 
     # Kick a likely/suspected bot
     @ac.command(
@@ -104,7 +105,6 @@ class ModCog(commands.Cog):
         # Must send DM before kicking or it won't be sendable
         await self.log_dm(interaction=interaction, action="botkick", member=member, message=reason)
         await interaction.guild.kick(member)
-        await interaction.response.send_message(f"{member.display_name} kicked.", ephemeral=True)
 
     # Purge messages from a channel or member
     # NOTE: Member purge is an experimental feature based on unstable spec here: https://github.com/discord/discord-api-docs/discussions/3216
