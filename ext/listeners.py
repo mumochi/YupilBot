@@ -58,7 +58,7 @@ class ListenCog(commands.Cog):
                     if m.embeds[0].footer.text is None or str(member.id) not in m.embeds[0].footer.text or (str(member.id) in m.embeds[0].footer.text and embed.description != m.embeds[0].description):
                         await priority_log_channel.send(embed=embed)
         except BaseException as e:
-            note = f"**Error occurred when getting excessive DM status for {member.mention}**:\n{str(e)}"
+            note = f"**Error occurred when getting excessive DM status for {member.mention}**:\nAttempted to access {url} and returned message: `{r.json()['message']}`"
             embed = discord.Embed(title=None,
                                     description=note,
                                     color=discord.Color.dark_gold(),
