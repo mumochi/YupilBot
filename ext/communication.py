@@ -33,7 +33,7 @@ class CommsCog(commands.Cog):
         embed_footer="Footer text for embed (optional, default: None)"
     )
     async def chat(
-        self, interaction: discord.Interaction, message: str, channel: Union[discord.TextChannel, discord.Thread],
+        self, interaction: discord.Interaction, message: str, channel: Union[discord.TextChannel, discord.Thread, discord.VoiceChannel, discord.StageChannel],
         reply_id: str=None, as_embed: bool=False, embed_title: str=None, image_url: str=None, embed_url: str=None, embed_footer: str=None) -> None:
 
         message = message.replace(r'\n', '\n') # Supports sending newline breaks

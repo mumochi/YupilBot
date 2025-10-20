@@ -119,7 +119,7 @@ class ModCog(commands.Cog):
     )
     async def purge(
         self, interaction: discord.Interaction, messages: int, 
-        target_channel: Union[discord.TextChannel, discord.Thread]=None, target_member: discord.Member=None) -> None:
+        target_channel: Union[discord.TextChannel, discord.Thread, discord.VoiceChannel, discord.StageChannel]=None, target_member: discord.Member=None) -> None:
         
         await interaction.response.defer(ephemeral=True, thinking=True)
 
