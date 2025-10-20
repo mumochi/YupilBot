@@ -6,6 +6,17 @@ import discord.app_commands as ac
 import datetime as dt
 import asyncio
 import requests
+from collections import deque
+
+# Parameters for anti-spam detection
+CACHE_SIZE = 3
+MESSAGE_AGE = 60
+
+class MessageSnowflake(discord.abc.Snowflake):
+    def __init__(self, created_at: dt.datetime, author: str, content: str) -> None:
+        self.created_at = created_at
+        self.author = author
+        self.content = content
 
 class RoleSnowflake(discord.abc.Snowflake):
     def __init__(self, id: int) -> None:
@@ -16,6 +27,10 @@ class ListenCog(commands.Cog):
         self.bot = bot
         self.all_role = self.bot.config.all_role
         self.vc_role = self.bot.config.vc_role
+        self.message_cache = deque(maxlen=CACHE_SIZE)
+        self.message_cache.extend([MessageSnowflake(created_at=dt.datetime.now(dt.timezone.utc), author="author1", content="content1"), 
+        MessageSnowflake(created_at=dt.datetime.now(dt.timezone.utc), author="author2", content="content2"), 
+        MessageSnowflake(created_at=dt.datetime.now(dt.timezone.utc), author="author3", content="content3")])
 
     # Log spammer detection
     async def log_spammer(self, member: discord.Member) -> None:
@@ -32,6 +47,28 @@ class ListenCog(commands.Cog):
         async for m in priority_log_channel.history(limit=1):
             if m.embeds[0].footer.text is None or str(member.id) not in m.embeds[0].footer.text or (str(member.id) in m.embeds[0].footer.text and embed.description != m.embeds[0].description):
                 await priority_log_channel.send(embed=embed)
+
+    async def detect_spam(self, messages: deque, time: dt.datetime) -> None:
+        authors = [m.author.id for m in messages]
+        contents = [m.content for m in messages]
+        times = [(m.created_at - messages[0].created_at).seconds < MESSAGE_AGE for m in messages]
+
+        if len(set(authors)) == 1 and len(set(contents)) == 1 and all(times):
+            priority_log_channel = self.bot.get_channel(self.bot.config.priority_log_channel)
+            member = messages[0].author
+            timestamp = dt.datetime.now()
+            embed = discord.Embed(title="Spam Detected",
+                                description=f"{member.mention} has sent multiple identical messages within the last {MESSAGE_AGE} seconds.",
+                                color=discord.Color.orange(),
+                                timestamp=timestamp)
+            avatar = await self.bot.helpers.valid_avatar(member=member)
+            embed.set_author(name=member.display_name, icon_url=avatar)
+            embed.set_footer(text = f"Member: {member.name} | ID: {member.id}")
+            # Avoid repeating message log
+            async for m in priority_log_channel.history(limit=1):
+                if m.embeds[0].footer.text is None or str(member.id) not in m.embeds[0].footer.text or (str(member.id) in m.embeds[0].footer.text and embed.description != m.embeds[0].description):
+                    await priority_log_channel.send(embed=embed)
+    
 
     async def check_excess_dms(self, member: discord.Member) -> None:
         # Experimental feature; may break in the future if Discord API spec changes
@@ -189,6 +226,7 @@ class ListenCog(commands.Cog):
     async def on_message(self, message: discord.Message) -> None:
         """Listens for and responds to new messages."""
         log_channel = self.bot.get_channel(self.bot.config.log_channel)
+        now = dt.datetime.now(dt.timezone.utc)
         if message.author.bot:
             return
         elif message.flags.forwarded and int(message.reference.guild_id) != int(self.bot.config.server_id):
@@ -199,8 +237,9 @@ class ListenCog(commands.Cog):
             await self.remove_duplicate_welcomes(message=message)
         elif isinstance(message.channel, discord.DMChannel):
             await self.log_dm_reply(message=message)
-        else:
-            return
+
+        self.message_cache.append(message)
+        await self.detect_spam(messages=self.message_cache, time=now)
 
     # Run daily checks at EST 12:00/UTC 16:00
     # NOTE: experimental and might also require running fetch_members() instead of calling guild.members
