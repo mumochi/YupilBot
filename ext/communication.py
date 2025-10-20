@@ -4,6 +4,7 @@ import discord
 from discord import ui
 from discord.ext import commands
 import discord.app_commands as ac
+from typing import Union
 
 class Message(ui.Modal, title="Send Message"):
     answer = ui.TextInput(label="Answer", style=discord.TextStyle.paragraph)
@@ -32,7 +33,7 @@ class CommsCog(commands.Cog):
         embed_footer="Footer text for embed (optional, default: None)"
     )
     async def chat(
-        self, interaction: discord.Interaction, message: str, channel: discord.TextChannel,
+        self, interaction: discord.Interaction, message: str, channel: Union[discord.TextChannel, discord.Thread],
         reply_id: str=None, as_embed: bool=False, embed_title: str=None, image_url: str=None, embed_url: str=None, embed_footer: str=None) -> None:
 
         message = message.replace(r'\n', '\n') # Supports sending newline breaks

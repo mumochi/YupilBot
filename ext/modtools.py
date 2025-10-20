@@ -6,7 +6,7 @@ import discord.app_commands as ac
 import datetime as dt
 import asyncio
 import requests
-from typing import Optional
+from typing import Optional, Union
 
 class MessageSnowflake(discord.abc.Snowflake):
     def __init__(self, id: int) -> None:
@@ -119,7 +119,7 @@ class ModCog(commands.Cog):
     )
     async def purge(
         self, interaction: discord.Interaction, messages: int, 
-        target_channel: discord.TextChannel=None, target_member: discord.Member=None) -> None:
+        target_channel: Union[discord.TextChannel, discord.Thread]=None, target_member: discord.Member=None) -> None:
         
         await interaction.response.defer(ephemeral=True, thinking=True)
 
