@@ -24,6 +24,7 @@ class BotClient(commands.Bot):
         self.helpers = Helpers()
 
     async def setup_hook(self) -> None:
+        self.tree.clear_commands(guild=None)
         for ext in ext_list:
             await self.load_extension(f"ext.{ext}")
         await self.tree.sync()
