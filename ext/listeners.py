@@ -296,7 +296,7 @@ class ListenCog(commands.Cog):
         try:
             if message.cached_message is not None:
                 if message.cached_message.clean_content == message.message.clean_content:
-                    returng
+                    return
                 before = await self.truncate_text(message.cached_message.content)
                 after = await self.truncate_text(message.message.content)
                 user_link = message.cached_message.author.mention
