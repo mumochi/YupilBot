@@ -56,7 +56,7 @@ class SyncCog(commands.Cog):
     )
     async def sync(self, interaction: discord.Interaction) -> None:
         self.bot.tree.clear_commands()
-        await self.bot.tree.sync()
+        await self.bot.tree.sync(guild=None)
         await interaction.response.send_message("Commands synced.", ephemeral=True)
 
 class KillCog(commands.Cog):
