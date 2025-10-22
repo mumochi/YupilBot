@@ -55,6 +55,7 @@ class SyncCog(commands.Cog):
         description="Manually syncs all bot commands. Use to update commands without restarting the bot."
     )
     async def sync(self, interaction: discord.Interaction) -> None:
+        self.bot.tree.clear_commands()
         await self.bot.tree.sync()
         await interaction.response.send_message("Commands synced.", ephemeral=True)
 
