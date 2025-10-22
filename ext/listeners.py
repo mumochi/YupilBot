@@ -29,7 +29,8 @@ class ListenCog(commands.Cog):
         embed.set_author(name=member.display_name, icon_url=avatar)
         embed.set_footer(text = f"Member: {member.name} | ID: {member.id}")
         # Avoid repeating message log
-        async for m in priority_log_channel.history(limit=1):
+        messages = [m async for m in priority_log_channel.history(limit=1)]
+        for m in messages:
             if m.embeds[0].footer.text is None or str(member.id) not in m.embeds[0].footer.text or (str(member.id) in m.embeds[0].footer.text and embed.description != m.embeds[0].description):
                 await priority_log_channel.send(embed=embed)
 
@@ -54,7 +55,8 @@ class ListenCog(commands.Cog):
                 embed.set_author(name=member.display_name, icon_url=avatar)
                 embed.set_footer(text=f"Member: {member.name} | ID: {member.id}")
                 # Avoid repeating message log
-                async for m in priority_log_channel.history(limit=1):
+                messages = [m async for m in priority_log_channel.history(limit=1)]
+                for m in messages:
                     if m.embeds[0].footer.text is None or str(member.id) not in m.embeds[0].footer.text or (str(member.id) in m.embeds[0].footer.text and embed.description != m.embeds[0].description):
                         await priority_log_channel.send(embed=embed)
         except BaseException as e:
@@ -204,7 +206,7 @@ class ListenCog(commands.Cog):
 
     # Run daily checks at EST 12:00/UTC 16:00
     # NOTE: experimental and might also require running fetch_members() instead of calling guild.members
-    @tasks.loop(time=dt.time(hour=16, minute=00, tzinfo=dt.timezone.utc))
+    @tasks.loop(time=dt.time(hour=17, minute=00, tzinfo=dt.timezone.utc))
     async def run_member_checks(self) -> None:
         time_check = dt.datetime.now(dt.timezone.utc) - dt.timedelta(hours=25)
         guild = self.bot.get_guild(int(self.bot.config.server_id))
@@ -292,7 +294,7 @@ class ListenCog(commands.Cog):
         if (timestamp - message.message.created_at).days > MAX_AGE or message.message.author.bot:
             return
         try:
-            if message.cached_message is not None:
+            if message.cached_message is not None and message.cached_message.content != message.message.content:
                 before = await self.truncate_text(message.cached_message.content)
                 after = await self.truncate_text(message.message.content)
                 user_link = message.cached_message.author.mention
