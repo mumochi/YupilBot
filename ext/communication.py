@@ -2,18 +2,19 @@
 
 import discord
 from discord import ui
-from discord import app_commands as ac
 from discord.ext import commands
+import discord.app_commands as ac
+from typing import Union
 
 class Message(ui.Modal, title="Send Message"):
     answer = ui.TextInput(label="Answer", style=discord.TextStyle.paragraph)
 
-    async def on_submit(self, interaction: discord.Interaction):
+    async def on_submit(self, interaction: discord.Interaction) -> None:
         await interaction.response.send_message(f"Message sent", ephemeral=True)
 
 
 class CommsCog(commands.Cog):
-    def __init__(self, bot):
+    def __init__(self, bot: commands.Bot) -> None:
         self.bot = bot
 
     # Chat command
@@ -32,8 +33,8 @@ class CommsCog(commands.Cog):
         embed_footer="Footer text for embed (optional, default: None)"
     )
     async def chat(
-        self, interaction: discord.Interaction, message: str, channel: discord.TextChannel,
-        reply_id: str=None, as_embed: bool=False, embed_title: str=None, image_url: str=None, embed_url: str=None, embed_footer: str=None):
+        self, interaction: discord.Interaction, message: str, channel: Union[discord.TextChannel, discord.Thread, discord.VoiceChannel, discord.StageChannel],
+        reply_id: str=None, as_embed: bool=False, embed_title: str=None, image_url: str=None, embed_url: str=None, embed_footer: str=None) -> None:
 
         message = message.replace(r'\n', '\n') # Supports sending newline breaks
 
@@ -77,7 +78,7 @@ class CommsCog(commands.Cog):
         message="Message to send to user",
         user="User to send message to"
     )
-    async def dm(self, interaction: discord.Interaction, message: str, user: discord.Member):
+    async def dm(self, interaction: discord.Interaction, message: str, user: discord.Member) -> None:
         """Sends a DM to the indicated user."""
         log_channel = self.bot.get_channel(self.bot.config.log_channel)
         message = message.replace(r'\n', '\n')
@@ -95,5 +96,5 @@ class CommsCog(commands.Cog):
         except:
             await interaction.response.send_message(f"DM failed to send. {user.display_name} may have DMs turned off.", ephemeral=True)
 
-async def setup(bot):
+async def setup(bot: commands.Bot) -> None:
     await bot.add_cog(CommsCog(bot=bot))

@@ -3,8 +3,8 @@
 import os
 import sys
 import discord
-from discord import app_commands as ac
 from discord.ext import commands
+import discord.app_commands as ac
 
 # List acceptable parameter values
 # Doesn't allow config.py, helpers.py, or meta.py to be actioned because this will break dynamic extensions, forcing a bot restart
@@ -12,7 +12,7 @@ ext_list = (ext.rstrip(".py") for ext in os.listdir("./ext") if ext.endswith(".p
 act_list = ("load", "reload", "unload")
 
 class ExtCog(commands.Cog):
-    def __init__(self, bot):
+    def __init__(self, bot: commands.Bot) -> None:
         self.bot = bot
 
     @ac.command(
@@ -25,7 +25,7 @@ class ExtCog(commands.Cog):
     @ac.choices(
         extension=[ac.Choice(name=ext, value=ext) for ext in ext_list],
         action=[ac.Choice(name=act, value=act) for act in act_list])
-    async def extensions(self, interaction: discord.Interaction, extension: str, action: str):
+    async def extensions(self, interaction: discord.Interaction, extension: str, action: str) -> None:
         extension = extension.rstrip(".py")
         if action == "load":
             try:
@@ -47,19 +47,19 @@ class ExtCog(commands.Cog):
                 await interaction.response.send_message(f"\"{extension}\" extension is not loaded.", ephemeral=True)
     
 class SyncCog(commands.Cog):
-    def __init__(self, bot):
+    def __init__(self, bot: commands.Bot) -> None:
         self.bot = bot
 
     @ac.command(
         name="sync",
         description="Manually syncs all bot commands. Use to update commands without restarting the bot."
     )
-    async def sync(self, interaction: discord.Interaction):
+    async def sync(self, interaction: discord.Interaction) -> None:
         await self.bot.tree.sync()
         await interaction.response.send_message("Commands synced.", ephemeral=True)
 
 class KillCog(commands.Cog):
-    def __init__(self, bot):
+    def __init__(self, bot: commands.Bot) -> None:
         self.bot = bot
 
     @ac.command(
@@ -69,7 +69,7 @@ class KillCog(commands.Cog):
     @ac.describe(
             reason = "Motive for the murder."
     )
-    async def kill_me(self, interaction: discord.Interaction, reason: str):
+    async def kill_me(self, interaction: discord.Interaction, reason: str) -> None:
         """Terminates the program and logs the reason."""
         log_channel = self.bot.get_channel(self.bot.config.log_channel)
         deadge = [e for e in self.bot.emojis if e.name == "yuyixDeadge"][0]
@@ -77,7 +77,7 @@ class KillCog(commands.Cog):
         sys.exit(reason)
 
 
-async def setup(bot):
+async def setup(bot: commands.Bot) -> None:
     await bot.add_cog(ExtCog(bot=bot))
     await bot.add_cog(SyncCog(bot=bot))
     await bot.add_cog(KillCog(bot=bot))
