@@ -294,7 +294,7 @@ class ListenCog(commands.Cog):
         if (timestamp - message.message.created_at).days > MAX_AGE or message.message.author.bot:
             return
         try:
-            if message.cached_message is not None:
+            if message.cached_message is not None and message.cached_message.content != message.message.content:
                 before = await self.truncate_text(message.cached_message.content)
                 after = await self.truncate_text(message.message.content)
                 user_link = message.cached_message.author.mention
