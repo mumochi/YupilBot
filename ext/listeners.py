@@ -44,7 +44,8 @@ class ListenCog(commands.Cog):
         embed.set_author(name=member.display_name, icon_url=avatar)
         embed.set_footer(text = f"Member: {member.name} | ID: {member.id}")
         # Avoid repeating message log
-        async for m in priority_log_channel.history(limit=1):
+        messages = [m async for m in priority_log_channel.history(limit=1)]
+        for m in messages:
             if m.embeds[0].footer.text is None or str(member.id) not in m.embeds[0].footer.text or (str(member.id) in m.embeds[0].footer.text and embed.description != m.embeds[0].description):
                 await priority_log_channel.send(embed=embed)
 
@@ -65,7 +66,8 @@ class ListenCog(commands.Cog):
             embed.set_author(name=member.display_name, icon_url=avatar)
             embed.set_footer(text = f"Member: {member.name} | ID: {member.id}")
             # Avoid repeating message log
-            async for m in priority_log_channel.history(limit=1):
+            messages = [m async for m in priority_log_channel.history(limit=1)]
+            for m in messages:
                 if m.embeds[0].footer.text is None or str(member.id) not in m.embeds[0].footer.text or (str(member.id) in m.embeds[0].footer.text and embed.description != m.embeds[0].description):
                     await priority_log_channel.send(embed=embed)
     
@@ -91,7 +93,8 @@ class ListenCog(commands.Cog):
                 embed.set_author(name=member.display_name, icon_url=avatar)
                 embed.set_footer(text=f"Member: {member.name} | ID: {member.id}")
                 # Avoid repeating message log
-                async for m in priority_log_channel.history(limit=1):
+                messages = [m async for m in priority_log_channel.history(limit=1)]
+                for m in messages:
                     if m.embeds[0].footer.text is None or str(member.id) not in m.embeds[0].footer.text or (str(member.id) in m.embeds[0].footer.text and embed.description != m.embeds[0].description):
                         await priority_log_channel.send(embed=embed)
         except BaseException as e:
@@ -332,6 +335,8 @@ class ListenCog(commands.Cog):
             return
         try:
             if message.cached_message is not None:
+                if message.cached_message.clean_content == message.message.clean_content:
+                    return
                 before = await self.truncate_text(message.cached_message.content)
                 after = await self.truncate_text(message.message.content)
                 user_link = message.cached_message.author.mention
