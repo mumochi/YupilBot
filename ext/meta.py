@@ -1,10 +1,12 @@
 # Module for manual loading, reloading, and unloading extensions as well as syncing commands
 
 import os
+import re
 import sys
 import discord
 from discord.ext import commands
 import discord.app_commands as ac
+from typing import Optional
 
 # List acceptable parameter values
 # Doesn't allow config.py, helpers.py, or meta.py to be actioned because this will break dynamic extensions, forcing a bot restart
@@ -76,8 +78,51 @@ class KillCog(commands.Cog):
         await log_channel.send(f"{interaction.user.global_name} murdered Yupil Bot for: {reason} <:{deadge.name}:{deadge.id}>")
         sys.exit(reason)
 
+class LogCog(commands.Cog):
+    def __init__(self, bot: commands.Bot) -> None:
+        self.bot = bot
+
+    @ac.command(
+        name = "view_log",
+        description = "Sends discord.log tail text as a chat message."
+    )
+    @ac.describe(
+        warnings = "Only show log lines with warnings.",
+        errors = "Only show log lines with errors."
+    )
+    async def view_log(self, interaction: discord.Interaction, warnings: Optional[bool]=False, errors: Optional[bool]=False) -> None:
+        """Reads discord.log file and sends tail contents as an embed message."""
+        EMBED_MAX = 4096
+        DUMMYVAL = "DUMMYVAL1234"
+        
+        warn_pattern = "warn" if warnings is True else DUMMYVAL
+        error_pattern = "error" if errors is True else DUMMYVAL
+
+        if warnings is True or errors is True:
+            with open("discord.log", "r") as f:
+                lines = "".join(line for line in f.readlines() if re.search(warn_pattern, line.lower()) or re.search(error_pattern, line.lower())) 
+        
+        else:
+            with open("discord.log", "r") as f:
+                lines = "".join(f.readlines())         
+
+        if len(lines) > EMBED_MAX:
+            start_index = lines.find("\n", len(lines)-EMBED_MAX)
+            lines = lines[start_index:len(lines)-1] 
+
+        elif len(lines) == 0:
+            lines = "No entries available for query."  
+
+        embed = discord.Embed(title="discord.log",
+                                    description=lines,
+                                    color=self.bot.helpers.yupil_color)
+
+        await interaction.response.send_message(embed=embed)
+  
 
 async def setup(bot: commands.Bot) -> None:
     await bot.add_cog(ExtCog(bot=bot))
     await bot.add_cog(SyncCog(bot=bot))
     await bot.add_cog(KillCog(bot=bot))
+    await bot.add_cog(LogCog(bot=bot))
+    

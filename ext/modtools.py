@@ -193,7 +193,6 @@ class ModCog(commands.Cog):
             name = "restrict",
             description = "Restricts a member from viewing all channels."
     )
-    #@ac.checks.has_role(permitted_role)
     @ac.describe(
         member = "Member to restrict"
     )
@@ -209,7 +208,6 @@ class ModCog(commands.Cog):
             name = "unrestrict",
             description = "Unrestricts a member to restore channel access."
     )
-    #@ac.checks.has_role(permitted_role)
     @ac.describe(
         member = "Member to unrestrict"
     )
