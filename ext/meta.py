@@ -12,6 +12,7 @@ from typing import Optional
 # Doesn't allow config.py, helpers.py, or meta.py to be actioned because this will break dynamic extensions, forcing a bot restart
 ext_list = (ext.rstrip(".py") for ext in os.listdir("./ext") if ext.endswith(".py") and ext not in ("config.py", "helpers.py", "meta.py"))
 act_list = ("load", "reload", "unload")
+toggle_list = ("disable_webcam", )
 
 class ExtCog(commands.Cog):
     def __init__(self, bot: commands.Bot) -> None:
@@ -47,6 +48,28 @@ class ExtCog(commands.Cog):
                 await interaction.response.send_message(f"Unloaded extension: {extension}", ephemeral=True)
             except commands.ExtensionNotLoaded:
                 await interaction.response.send_message(f"\"{extension}\" extension is not loaded.", ephemeral=True)
+
+class ToggleCog(commands.Cog):
+    def __init__(self, bot: commands.Bot) -> None:
+        self.bot = bot
+
+    @ac.command(
+        name="toggle",
+        description="Toggle bot commands."
+    )
+    @ac.describe(
+        function="Name of function.",
+        toggle_state="Enable or disable function."
+    )
+    @ac.choices(
+        function=[ac.Choice(name=cmd, value=cmd) for cmd in toggle_list],
+        toggle_state=[ac.Choice(name=state, value=state) for state in ["Enable", "Disable"]]
+    )
+    async def toggle(self, interaction: discord.Interaction, function: str, toggle_state: str) -> None:
+        """Enables or disables a bot function."""
+        if function == "disable_webcam":
+            self.bot.config.disable_webcams = True if toggle_state == "Enable" else False
+            await interaction.response.send_message(f"Function {function} toggled to \"{toggle_state}\".", ephemeral=True)
     
 class SyncCog(commands.Cog):
     def __init__(self, bot: commands.Bot) -> None:
@@ -78,7 +101,7 @@ class KillCog(commands.Cog):
         await log_channel.send(f"{interaction.user.global_name} murdered Yupil Bot for: {reason} <:{deadge.name}:{deadge.id}>")
         sys.exit(reason)
 
-class LogCog(commands.Cog):
+class DebugCog(commands.Cog):
     def __init__(self, bot: commands.Bot) -> None:
         self.bot = bot
 
@@ -122,7 +145,8 @@ class LogCog(commands.Cog):
 
 async def setup(bot: commands.Bot) -> None:
     await bot.add_cog(ExtCog(bot=bot))
+    await bot.add_cog(ToggleCog(bot=bot))
     await bot.add_cog(SyncCog(bot=bot))
     await bot.add_cog(KillCog(bot=bot))
-    await bot.add_cog(LogCog(bot=bot))
+    await bot.add_cog(DebugCog(bot=bot))
     
