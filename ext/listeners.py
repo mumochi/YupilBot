@@ -13,10 +13,10 @@ CACHE_SIZE = 3
 MESSAGE_AGE = 60
 
 class MessageSnowflake(discord.abc.Snowflake):
-    def __init__(self, created_at: dt.datetime, author: str, content: str) -> None:
-        self.created_at = created_at
+    def __init__(self, created_at: dt.datetime, author: discord.Member, content: str) -> None:
         self.author = author
-        self.content = content
+        self.created_at = created_at
+        self.content = content    
 
 class RoleSnowflake(discord.abc.Snowflake):
     def __init__(self, id: int) -> None:
@@ -28,9 +28,11 @@ class ListenCog(commands.Cog):
         self.all_role = self.bot.config.all_role
         self.vc_role = self.bot.config.vc_role
         self.message_cache = deque(maxlen=CACHE_SIZE)
-        self.message_cache.extend([MessageSnowflake(created_at=dt.datetime.now(dt.timezone.utc), author="author1", content="content1"), 
-        MessageSnowflake(created_at=dt.datetime.now(dt.timezone.utc), author="author2", content="content2"), 
-        MessageSnowflake(created_at=dt.datetime.now(dt.timezone.utc), author="author3", content="content3")])
+        init_message = []
+        for i in range(CACHE_SIZE):
+            author = RoleSnowflake(id=f"{i}")
+            init_message.append(MessageSnowflake(created_at=dt.datetime.now(dt.timezone.utc), author=author, content=f"content{i}"))
+        self.message_cache.extend(init_message)
 
     # Log spammer detection
     async def log_spammer(self, member: discord.Member) -> None:
@@ -190,7 +192,11 @@ class ListenCog(commands.Cog):
             await self.log_spammer(member=member)
         # add VC role after 15 minute delay
         await asyncio.sleep(15*60)
-        await member.add_roles(RoleSnowflake(id=self.vc_role))
+        try:
+            await member.add_roles(RoleSnowflake(id=self.vc_role))
+        except discord.NotFound:
+            msg = f"Attempted to add role to {member.display_name} but member left guild."
+            await self.bot.helpers.append_log(function="ext/listeners.py on_member_join", entry=msg)
 
     @commands.Cog.listener()
     async def on_member_update(self, before: discord.Member, after: discord.Member) -> None:
@@ -371,6 +377,13 @@ class ListenCog(commands.Cog):
                                     timestamp=timestamp
             )
             await log_channel.send(embed=embed)
+
+
+    @commands.Cog.listener()
+    async def on_command_error(self, ctx: commands.Context, error: commands.CommandError):
+        if isinstance(error, commands.errors.CommandNotFound):
+            msg = f"{ctx.author} attempted to use unregistered command: {ctx.message.content}"
+            await self.bot.helpers.append_log(function="ext/listeners.py on_command_error", entry=msg)
 
 async def setup(bot: commands.Bot) -> None:
     await bot.add_cog(ListenCog(bot=bot))

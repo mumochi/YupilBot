@@ -2,6 +2,7 @@
 
 import discord
 import requests
+import datetime as dt
 from typing import Optional, Tuple
 
 class Helpers:
@@ -44,3 +45,11 @@ class Helpers:
         if member.avatar is not None:
             avatar_url = member.avatar.url
         return avatar_url
+
+    async def append_log(self, function: str, entry: str) -> None:
+        """Appends a line to discord.log with current timestamp, currently used for INFO logging."""
+        now = dt.datetime.now()
+        now = now.strftime("%Y-%m-%d %H:%M:%S")
+
+        with open("discord.log", "a") as f:
+            f.write(f"[{now}] [INFO    ] {function}: {entry}\n")
