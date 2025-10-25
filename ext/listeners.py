@@ -48,7 +48,7 @@ class ListenCog(commands.Cog):
         # Avoid repeating message log
         messages = [m async for m in priority_log_channel.history(limit=1)]
         for m in messages:
-            if m.embeds[0].footer.text is None or str(member.id) not in m.embeds[0].footer.text or (str(member.id) in m.embeds[0].footer.text and embed.description != m.embeds[0].description):
+            if len(m.embeds) == 0 or m.embeds[0].footer.text is None or str(member.id) not in m.embeds[0].footer.text or (str(member.id) in m.embeds[0].footer.text and embed.description != m.embeds[0].description):
                 await priority_log_channel.send(embed=embed)
 
     async def detect_spam(self, messages: deque, time: dt.datetime) -> None:
@@ -70,7 +70,7 @@ class ListenCog(commands.Cog):
             # Avoid repeating message log
             messages = [m async for m in priority_log_channel.history(limit=1)]
             for m in messages:
-                if m.embeds[0].footer.text is None or str(member.id) not in m.embeds[0].footer.text or (str(member.id) in m.embeds[0].footer.text and embed.description != m.embeds[0].description):
+                if len(m.embeds) == 0 or m.embeds[0].footer.text is None or str(member.id) not in m.embeds[0].footer.text or (str(member.id) in m.embeds[0].footer.text and embed.description != m.embeds[0].description):
                     await priority_log_channel.send(embed=embed)
     
 
@@ -97,7 +97,7 @@ class ListenCog(commands.Cog):
                 # Avoid repeating message log
                 messages = [m async for m in priority_log_channel.history(limit=1)]
                 for m in messages:
-                    if m.embeds[0].footer.text is None or str(member.id) not in m.embeds[0].footer.text or (str(member.id) in m.embeds[0].footer.text and embed.description != m.embeds[0].description):
+                    if len(m.embeds) == 0 or m.embeds[0].footer.text is None or str(member.id) not in m.embeds[0].footer.text or (str(member.id) in m.embeds[0].footer.text and embed.description != m.embeds[0].description):
                         await priority_log_channel.send(embed=embed)
         except BaseException as e:
             note = f"**Error occurred when getting excessive DM status for {member.mention}**:\nAttempted to access {url} and returned message: `{r.json()['message']}`"
