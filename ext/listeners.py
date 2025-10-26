@@ -6,6 +6,17 @@ import discord.app_commands as ac
 import datetime as dt
 import asyncio
 import requests
+from collections import deque
+
+# Parameters for anti-spam detection
+CACHE_SIZE = 3
+MESSAGE_AGE = 60
+
+class MessageSnowflake(discord.abc.Snowflake):
+    def __init__(self, created_at: dt.datetime, author: discord.Member, content: str) -> None:
+        self.author = author
+        self.created_at = created_at
+        self.content = content    
 
 class RoleSnowflake(discord.abc.Snowflake):
     def __init__(self, id: int) -> None:
@@ -16,9 +27,16 @@ class ListenCog(commands.Cog):
         self.bot = bot
         self.all_role = self.bot.config.all_role
         self.vc_role = self.bot.config.vc_role
+        self.message_cache = deque(maxlen=CACHE_SIZE)
+        init_message = []
+        for i in range(CACHE_SIZE):
+            author = RoleSnowflake(id=f"{i}")
+            init_message.append(MessageSnowflake(created_at=dt.datetime.now(dt.timezone.utc), author=author, content=f"content{i}"))
+        self.message_cache.extend(init_message)
 
     # Log spammer detection
     async def log_spammer(self, member: discord.Member) -> None:
+        """Sends a log message for members that Discord has detected as a likely spammer."""
         timestamp = dt.datetime.now()
         priority_log_channel = self.bot.get_channel(self.bot.config.priority_log_channel)
         embed = discord.Embed(title="Potential Spammer Detected",
@@ -31,11 +49,36 @@ class ListenCog(commands.Cog):
         # Avoid repeating message log
         messages = [m async for m in priority_log_channel.history(limit=1)]
         for m in messages:
-            if m.embeds[0].footer.text is None or str(member.id) not in m.embeds[0].footer.text or (str(member.id) in m.embeds[0].footer.text and embed.description != m.embeds[0].description):
+            if len(m.embeds) == 0 or m.embeds[0].footer.text is None or str(member.id) not in m.embeds[0].footer.text or (str(member.id) in m.embeds[0].footer.text and embed.description != m.embeds[0].description):
                 await priority_log_channel.send(embed=embed)
+
+    async def detect_spam(self, messages: deque, time: dt.datetime) -> None:
+        """Sends a log message when identical message spam has been detected."""
+        authors = [m.author.id for m in messages]
+        contents = [m.content for m in messages]
+        times = [(m.created_at - messages[0].created_at).seconds < MESSAGE_AGE for m in messages]
+
+        if len(set(authors)) == 1 and len(set(contents)) == 1 and all(times):
+            priority_log_channel = self.bot.get_channel(self.bot.config.priority_log_channel)
+            member = messages[0].author
+            timestamp = dt.datetime.now()
+            embed = discord.Embed(title="Spam Detected",
+                                description=f"{member.mention} has sent multiple identical messages within the last {MESSAGE_AGE} seconds.",
+                                color=discord.Color.orange(),
+                                timestamp=timestamp)
+            avatar = await self.bot.helpers.valid_avatar(member=member)
+            embed.set_author(name=member.display_name, icon_url=avatar)
+            embed.set_footer(text = f"Member: {member.name} | ID: {member.id}")
+            # Avoid repeating message log
+            messages = [m async for m in priority_log_channel.history(limit=1)]
+            for m in messages:
+                if len(m.embeds) == 0 or m.embeds[0].footer.text is None or str(member.id) not in m.embeds[0].footer.text or (str(member.id) in m.embeds[0].footer.text and embed.description != m.embeds[0].description):
+                    await priority_log_channel.send(embed=embed)
+    
 
     async def check_excess_dms(self, member: discord.Member) -> None:
         # Experimental feature; may break in the future if Discord API spec changes
+        """Sends a message log when Discord has identified a member as having sent excessive DMs."""
         timestamp = dt.datetime.now()
         priority_log_channel = self.bot.get_channel(self.bot.config.priority_log_channel)
         dm_flag = "unusual_dm_activity_until"
@@ -57,7 +100,7 @@ class ListenCog(commands.Cog):
                 # Avoid repeating message log
                 messages = [m async for m in priority_log_channel.history(limit=1)]
                 for m in messages:
-                    if m.embeds[0].footer.text is None or str(member.id) not in m.embeds[0].footer.text or (str(member.id) in m.embeds[0].footer.text and embed.description != m.embeds[0].description):
+                    if len(m.embeds) == 0 or m.embeds[0].footer.text is None or str(member.id) not in m.embeds[0].footer.text or (str(member.id) in m.embeds[0].footer.text and embed.description != m.embeds[0].description):
                         await priority_log_channel.send(embed=embed)
         except BaseException as e:
             note = f"**Error occurred when getting excessive DM status for {member.mention}**:\nAttempted to access {url} and returned message: `{r.json()['message']}`"
@@ -70,6 +113,7 @@ class ListenCog(commands.Cog):
 
     # Check roles for guild members who recently joined
     async def add_missing_roles(self, member: discord.Member) -> None:
+        """Add missing all-member and VC-access roles to members."""
         role_ids = (role.id for role in member.roles)
         if self.all_role not in role_ids:
             await member.add_roles(RoleSnowflake(id=self.all_role))
@@ -147,12 +191,16 @@ class ListenCog(commands.Cog):
     async def on_member_join(self, member: discord.Member) -> None:
         await self.new_member(member=member)
         await member.add_roles(RoleSnowflake(id=self.all_role))
-        if member.public_flags.spammer:
+        if member.public_flags.spammer is True:
             await asyncio.sleep(1) # Help avoid rate-limiting
             await self.log_spammer(member=member)
         # add VC role after 15 minute delay
         await asyncio.sleep(15*60)
-        await member.add_roles(RoleSnowflake(id=self.vc_role))
+        try:
+            await member.add_roles(RoleSnowflake(id=self.vc_role))
+        except discord.NotFound:
+            msg = f"Attempted to add role to {member.display_name} but member left guild."
+            await self.bot.helpers.append_log(function="ext/listeners.py on_member_join", entry=msg)
 
     @commands.Cog.listener()
     async def on_member_update(self, before: discord.Member, after: discord.Member) -> None:
@@ -191,6 +239,7 @@ class ListenCog(commands.Cog):
     async def on_message(self, message: discord.Message) -> None:
         """Listens for and responds to new messages."""
         log_channel = self.bot.get_channel(self.bot.config.log_channel)
+        now = dt.datetime.now(dt.timezone.utc)
         if message.author.bot:
             return
         elif message.flags.forwarded and int(message.reference.guild_id) != int(self.bot.config.server_id):
@@ -201,8 +250,9 @@ class ListenCog(commands.Cog):
             await self.remove_duplicate_welcomes(message=message)
         elif isinstance(message.channel, discord.DMChannel):
             await self.log_dm_reply(message=message)
-        else:
-            return
+
+        self.message_cache.append(message)
+        await self.detect_spam(messages=self.message_cache, time=now)
 
     # Run daily checks at EST 12:00/UTC 16:00
     # NOTE: experimental and might also require running fetch_members() instead of calling guild.members
@@ -215,7 +265,7 @@ class ListenCog(commands.Cog):
             await self.add_missing_roles(member=member)
             await asyncio.sleep(1) # Help avoid rate-limiting
 
-        spammers = (member for member in guild.members if member.public_flags.spammer)
+        spammers = (member for member in guild.members if member.public_flags.spammer is True)
         for member in spammers:
             await self.log_spammer(member=member)
             await asyncio.sleep(1) # Help avoid rate-limiting
@@ -331,6 +381,13 @@ class ListenCog(commands.Cog):
                                     timestamp=timestamp
             )
             await log_channel.send(embed=embed)
+
+
+    @commands.Cog.listener()
+    async def on_command_error(self, ctx: commands.Context, error: commands.CommandError):
+        if isinstance(error, commands.errors.CommandNotFound):
+            msg = f"{ctx.author} attempted to use unregistered command: {ctx.message.content}"
+            await self.bot.helpers.append_log(function="ext/listeners.py on_command_error", entry=msg)
 
 async def setup(bot: commands.Bot) -> None:
     await bot.add_cog(ListenCog(bot=bot))

@@ -24,4 +24,4 @@ class ConfigManager:
         self.permitted_role = config_env['permitted_role']  # Only users with this role can use the commands
         self.all_role = config_env['all_role'] # Cosmetic role assigned to every member upon joining
         self.vc_role = config_env['vc_role'] # Role assigned allowing VC access
-        self.disable_webcams = bool(config_env['disable_webcams'])
+        self.disable_webcams = eval(config_env['disable_webcams'])
