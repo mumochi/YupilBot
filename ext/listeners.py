@@ -36,6 +36,7 @@ class ListenCog(commands.Cog):
 
     # Log spammer detection
     async def log_spammer(self, member: discord.Member) -> None:
+        """Sends a log message for members that Discord has detected as a likely spammer."""
         timestamp = dt.datetime.now()
         priority_log_channel = self.bot.get_channel(self.bot.config.priority_log_channel)
         embed = discord.Embed(title="Potential Spammer Detected",
@@ -52,6 +53,7 @@ class ListenCog(commands.Cog):
                 await priority_log_channel.send(embed=embed)
 
     async def detect_spam(self, messages: deque, time: dt.datetime) -> None:
+        """Sends a log message when identical message spam has been detected."""
         authors = [m.author.id for m in messages]
         contents = [m.content for m in messages]
         times = [(m.created_at - messages[0].created_at).seconds < MESSAGE_AGE for m in messages]
@@ -76,6 +78,7 @@ class ListenCog(commands.Cog):
 
     async def check_excess_dms(self, member: discord.Member) -> None:
         # Experimental feature; may break in the future if Discord API spec changes
+        """Sends a message log when Discord has identified a member as having sent excessive DMs."""
         timestamp = dt.datetime.now()
         priority_log_channel = self.bot.get_channel(self.bot.config.priority_log_channel)
         dm_flag = "unusual_dm_activity_until"
@@ -110,6 +113,7 @@ class ListenCog(commands.Cog):
 
     # Check roles for guild members who recently joined
     async def add_missing_roles(self, member: discord.Member) -> None:
+        """Add missing all-member and VC-access roles to members."""
         role_ids = (role.id for role in member.roles)
         if self.all_role not in role_ids:
             await member.add_roles(RoleSnowflake(id=self.all_role))
@@ -187,7 +191,7 @@ class ListenCog(commands.Cog):
     async def on_member_join(self, member: discord.Member) -> None:
         await self.new_member(member=member)
         await member.add_roles(RoleSnowflake(id=self.all_role))
-        if member.public_flags.spammer:
+        if member.public_flags.spammer is True:
             await asyncio.sleep(1) # Help avoid rate-limiting
             await self.log_spammer(member=member)
         # add VC role after 15 minute delay
@@ -261,7 +265,7 @@ class ListenCog(commands.Cog):
             await self.add_missing_roles(member=member)
             await asyncio.sleep(1) # Help avoid rate-limiting
 
-        spammers = (member for member in guild.members if member.public_flags.spammer)
+        spammers = (member for member in guild.members if member.public_flags.spammer is True)
         for member in spammers:
             await self.log_spammer(member=member)
             await asyncio.sleep(1) # Help avoid rate-limiting
