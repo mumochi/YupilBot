@@ -9,8 +9,8 @@ import requests
 from collections import deque
 
 # Parameters for anti-spam detection
-CACHE_SIZE = 3
-MESSAGE_AGE = 60
+MSG_SPAM_CACHE = 3
+MSG_SPAM_AGE = 60
 
 class MessageSnowflake(discord.abc.Snowflake):
     def __init__(self, created_at: dt.datetime, author: discord.Member, content: str) -> None:
@@ -27,9 +27,9 @@ class ListenCog(commands.Cog):
         self.bot = bot
         self.all_role = self.bot.config.all_role
         self.vc_role = self.bot.config.vc_role
-        self.message_cache = deque(maxlen=CACHE_SIZE)
+        self.message_cache = deque(maxlen=MSG_SPAM_CACHE)
         init_message = []
-        for i in range(CACHE_SIZE):
+        for i in range(MSG_SPAM_CACHE):
             author = RoleSnowflake(id=f"{i}")
             init_message.append(MessageSnowflake(created_at=dt.datetime.now(dt.timezone.utc), author=author, content=f"content{i}"))
         self.message_cache.extend(init_message)
@@ -56,14 +56,14 @@ class ListenCog(commands.Cog):
         """Sends a log message when identical message spam has been detected."""
         authors = [m.author.id for m in messages]
         contents = [m.content for m in messages]
-        times = [(m.created_at - messages[0].created_at).seconds < MESSAGE_AGE for m in messages]
+        times = [(m.created_at - messages[0].created_at).seconds < MSG_SPAM_AGE for m in messages]
 
         if len(set(authors)) == 1 and len(set(contents)) == 1 and all(times):
             priority_log_channel = self.bot.get_channel(self.bot.config.priority_log_channel)
             member = messages[0].author
             timestamp = dt.datetime.now()
             embed = discord.Embed(title="Spam Detected",
-                                description=f"{member.mention} has sent multiple identical messages within the last {MESSAGE_AGE} seconds.",
+                                description=f"{member.mention} has sent multiple identical messages within the last {MSG_SPAM_AGE} seconds.",
                                 color=discord.Color.orange(),
                                 timestamp=timestamp)
             avatar = await self.bot.helpers.valid_avatar(member=member)
