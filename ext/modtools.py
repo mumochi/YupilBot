@@ -104,7 +104,7 @@ class ModCog(commands.Cog):
 
         # Must send DM before kicking or it won't be sendable
         await self.log_dm(interaction=interaction, action="botkick", member=member, message=reason)
-        await interaction.guild.kick(member)
+        await member.kick()
 
     # Purge messages from a channel or member
     # NOTE: Member purge is an experimental feature based on unstable spec here: https://github.com/discord/discord-api-docs/discussions/3216
