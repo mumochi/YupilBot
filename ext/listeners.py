@@ -28,6 +28,7 @@ class ListenCog(commands.Cog):
         self.all_role = self.bot.config.all_role
         self.vc_role = self.bot.config.vc_role
         self.message_cache = deque(maxlen=MSG_SPAM_CACHE)
+        # Create a mini-cache of messages and initialize with dummy values
         init_message = []
         for i in range(MSG_SPAM_CACHE):
             author = RoleSnowflake(id=f"{i}")
@@ -103,13 +104,8 @@ class ListenCog(commands.Cog):
                     if len(m.embeds) == 0 or m.embeds[0].footer.text is None or str(member.id) not in m.embeds[0].footer.text or (str(member.id) in m.embeds[0].footer.text and embed.description != m.embeds[0].description):
                         await priority_log_channel.send(embed=embed)
         except BaseException as e:
-            note = f"**Error occurred when getting excessive DM status for {member.mention}**:\nAttempted to access {url} and returned message: `{r.json()['message']}`"
-            embed = discord.Embed(title=None,
-                                    description=note,
-                                    color=discord.Color.dark_gold(),
-                                    timestamp=timestamp
-            )
-            await priority_log_channel.send(embed=embed)
+            note = f"Unable to get excessive DM status for {member.display_name}: Attempted to access {url} and returned message: {r.json()['message']}"
+            await self.bot.helpers.append_log(function="ext/listeners.py check_excess_dms", entry=note)
 
     # Check roles for guild members who recently joined
     async def add_missing_roles(self, member: discord.Member) -> None:
@@ -126,7 +122,7 @@ class ListenCog(commands.Cog):
         if "just boosted the server!" in message.content:
             return
         else:
-            async for m in message.channel.history(limit = 2):
+            async for m in message.channel.history(limit=2):
                 if m.author.id == message.author.id and m.id != message.id and ("just boosted the server!" not in m.content):
                     await m.delete()
 
