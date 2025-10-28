@@ -15,14 +15,15 @@ class Helpers:
         # Default URL for multi-image embeds
         self.default_url = "https://www.twitch.tv/yuy_ix"
 
-    async def valid_message(self, channel: discord.TextChannel, message_id: str) -> Tuple[str, str]:
+    async def valid_message(self, channel: discord.TextChannel, message_id: str, action_type: str) -> Tuple[str, str]:
         """Checks if a message_id is valid and if the message channel can be found"""
         try:
             message = await channel.fetch_message(int(message_id))
-            ctx_message = f"Message sent to {channel.jump_url}"
+            action = "sent to" if action_type == "reply" else "edited"
+            ctx_message = f"Message {action}: {channel.jump_url}"
         except (ValueError, discord.NotFound):
             message = None
-            ctx_message = "Message to reply to not found. Check that this is a valid message ID."
+            ctx_message = f"Message not found. Check that `{message_id}` is a valid message ID in `{channel}`."
         return message, ctx_message
 
     async def valid_url(self, url: Optional[str]) -> bool:
