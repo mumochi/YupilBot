@@ -12,7 +12,7 @@ from typing import Optional
 # Doesn't allow config.py, helpers.py, or meta.py to be actioned because this will break dynamic extensions, forcing a bot restart
 ext_list = (ext.rstrip(".py") for ext in os.listdir("./ext") if ext.endswith(".py") and ext not in ("config.py", "helpers.py", "meta.py"))
 act_list = ("load", "reload", "unload")
-toggle_list = ("disable_webcam", )
+toggle_list = ("disable_external_forwarding", "disable_webcam")
 
 class ExtCog(commands.Cog):
     def __init__(self, bot: commands.Bot) -> None:
@@ -63,12 +63,15 @@ class ToggleCog(commands.Cog):
     )
     @ac.choices(
         function=[ac.Choice(name=cmd, value=cmd) for cmd in toggle_list],
-        toggle_state=[ac.Choice(name=state, value=state) for state in ["Enable", "Disable"]]
+        toggle_state=[ac.Choice(name=state, value=state) for state in ["True", "False"]]
     )
     async def toggle(self, interaction: discord.Interaction, function: str, toggle_state: str) -> None:
         """Enables or disables a bot function."""
-        if function == "disable_webcam":
-            self.bot.config.disable_webcams = True if toggle_state == "Enable" else False
+        if function == "disable_external_forwarding":
+            self.bot.config.disable_external_forwarding = True if toggle_state == "True" else False
+            await interaction.response.send_message(f"Function {function} toggled to \"{toggle_state}\".", ephemeral=True)
+        elif function == "disable_webcam":
+            self.bot.config.disable_webcams = True if toggle_state == "True" else False
             await interaction.response.send_message(f"Function {function} toggled to \"{toggle_state}\".", ephemeral=True)
     
 class SyncCog(commands.Cog):

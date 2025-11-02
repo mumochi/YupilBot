@@ -8,10 +8,6 @@ import asyncio
 import requests
 from collections import deque
 
-# Parameters for anti-spam detection
-MSG_SPAM_CACHE = 3
-MSG_SPAM_AGE = 60
-
 class MessageSnowflake(discord.abc.Snowflake):
     def __init__(self, created_at: dt.datetime, author: discord.Member, content: str) -> None:
         self.author = author
@@ -27,10 +23,12 @@ class ListenCog(commands.Cog):
         self.bot = bot
         self.all_role = self.bot.config.all_role
         self.vc_role = self.bot.config.vc_role
-        self.message_cache = deque(maxlen=MSG_SPAM_CACHE)
+        self.message_spam_age = self.bot.config.message_spam_age
+        message_spam_cache = self.bot.config.message_spam_cache
+        self.message_cache = deque(maxlen=message_spam_cache)
         # Create a mini-cache of messages and initialize with dummy values
         init_message = []
-        for i in range(MSG_SPAM_CACHE):
+        for i in range(message_spam_cache):
             author = RoleSnowflake(id=f"{i}")
             init_message.append(MessageSnowflake(created_at=dt.datetime.now(dt.timezone.utc), author=author, content=f"content{i}"))
         self.message_cache.extend(init_message)
@@ -57,14 +55,14 @@ class ListenCog(commands.Cog):
         """Sends a log message when identical message spam has been detected."""
         authors = [m.author.id for m in messages]
         contents = [m.content for m in messages]
-        times = [(m.created_at - messages[0].created_at).seconds < MSG_SPAM_AGE for m in messages]
+        times = [(m.created_at - messages[0].created_at).seconds < self.message_spam_age for m in messages]
 
         if len(set(authors)) == 1 and len(set(contents)) == 1 and all(times):
             priority_log_channel = self.bot.get_channel(self.bot.config.priority_log_channel)
             member = messages[0].author
             timestamp = dt.datetime.now()
             embed = discord.Embed(title="Spam Detected",
-                                description=f"{member.mention} has sent multiple identical messages within the last {MSG_SPAM_AGE} seconds.",
+                                description=f"{member.mention} has sent multiple identical messages within the last {self.message_spam_age} seconds.",
                                 color=discord.Color.orange(),
                                 timestamp=timestamp)
             avatar = await self.bot.helpers.valid_avatar(member=member)
@@ -238,7 +236,7 @@ class ListenCog(commands.Cog):
         now = dt.datetime.now(dt.timezone.utc)
         if message.author.bot:
             return
-        elif message.flags.forwarded and int(message.reference.guild_id) != int(self.bot.config.server_id):
+        elif message.flags.forwarded and int(message.reference.guild_id) != int(self.bot.config.server_id) and self.bot.config.disable_external_forwarding is True:
             await log_channel.send(f"Deleting the following forwarded message of external server origin from {message.channel.jump_url}:")
             await message.forward(destination=log_channel)
             await message.delete()

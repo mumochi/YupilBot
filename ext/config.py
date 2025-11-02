@@ -24,3 +24,6 @@ class ConfigManager:
         self.all_role = config_env['all_role'] # Cosmetic role assigned to every member upon joining
         self.vc_role = config_env['vc_role'] # Role assigned allowing VC access
         self.disable_webcams = eval(config_env['disable_webcams'])
+        self.disable_external_forwarding = eval(config_env['disable_external_forwarding'])
+        self.message_spam_age = int(config_env['message_spam_age'])
+        self.message_spam_cache = int(config_env['message_spam_cache'])
