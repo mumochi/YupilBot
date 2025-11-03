@@ -7,12 +7,13 @@ import discord
 from discord.ext import commands
 import discord.app_commands as ac
 from typing import Optional
+import configparser
 
 # List acceptable parameter values
 # Doesn't allow config.py, helpers.py, or meta.py to be actioned because this will break dynamic extensions, forcing a bot restart
 ext_list = (ext.rstrip(".py") for ext in os.listdir("./ext") if ext.endswith(".py") and ext not in ("config.py", "helpers.py", "meta.py"))
 act_list = ("load", "reload", "unload")
-toggle_list = ("disable_external_forwarding", "disable_webcam")
+toggle_list = ("disable_external_forwarding", "disable_webcams")
 
 class ExtCog(commands.Cog):
     def __init__(self, bot: commands.Bot) -> None:
@@ -55,7 +56,7 @@ class ToggleCog(commands.Cog):
 
     @ac.command(
         name="toggle",
-        description="Toggle bot commands."
+        description="Toggle bot commands. Changes will be saved to the config.ini file."
     )
     @ac.describe(
         function="Name of function.",
@@ -67,11 +68,21 @@ class ToggleCog(commands.Cog):
     )
     async def toggle(self, interaction: discord.Interaction, function: str, toggle_state: str) -> None:
         """Enables or disables a bot function."""
+        config = configparser.ConfigParser()
+        config.read("config.ini")
         if function == "disable_external_forwarding":
             self.bot.config.disable_external_forwarding = True if toggle_state == "True" else False
+            for section in config.sections():
+                config[section]["disable_external_forwarding"] = toggle_state
+            with open("config.ini", "w") as configfile:
+                config.write(configfile)
             await interaction.response.send_message(f"Function {function} toggled to \"{toggle_state}\".", ephemeral=True)
-        elif function == "disable_webcam":
+        elif function == "disable_webcams":
             self.bot.config.disable_webcams = True if toggle_state == "True" else False
+            for section in config.sections():
+                config[section]["disable_webcams"] = toggle_state
+            with open("config.ini", "w") as configfile:
+                config.write(configfile)
             await interaction.response.send_message(f"Function {function} toggled to \"{toggle_state}\".", ephemeral=True)
     
 class SyncCog(commands.Cog):
