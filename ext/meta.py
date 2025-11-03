@@ -8,6 +8,8 @@ from discord.ext import commands
 import discord.app_commands as ac
 from typing import Optional
 import configparser
+import json
+import requests
 
 # List acceptable parameter values
 # Doesn't allow config.py, helpers.py, or meta.py to be actioned because this will break dynamic extensions, forcing a bot restart
@@ -118,6 +120,43 @@ class KillCog(commands.Cog):
 class DebugCog(commands.Cog):
     def __init__(self, bot: commands.Bot) -> None:
         self.bot = bot
+
+    @ac.command(
+        name = "json_request",
+        description = "Debug function to return raw json data for a request."
+    )
+    @ac.describe(
+        member = "Member to look up (optional).",
+        channel = "Channel containing a message to look up (optional, use with message_id).",
+        message_id = "Message ID (str) to look up (optional, use with channel)."
+    )
+    async def json_request(self, interaction: discord.Interaction, member: Optional[discord.Member], channel: Optional[discord.TextChannel]=None, message_id: Optional[str]=None) -> None:
+        """Performs a direct REST API request and retrieves the json payload."""
+        headers = {
+            'Accept': 'application/json',
+            'Authorization': f'Bot {self.bot.config.token}'
+        }
+        if member is not None:
+            url = f"https://discord.com/api/v10/guilds/{self.bot.config.server_id}/members/{member.id}"
+        elif channel is not None and message_id is not None:
+            url = f"https://discord.com/api/v10/channels/{channel.id}/messages/{message_id}"
+        else:
+            await interaction.response.send_message("Please give either:\n1. A valid member or\n2. Both a valid channel and a valid message ID (str)", ephemeral=True)
+            return
+        try:
+            r = requests.get(url=url, headers=headers)
+            rdata = ""
+            i = 4
+            MAX_LEN = 2000 # max message character length; errors if higher
+            # reformatting, aiming for indent=4 for better readability
+            while len(rdata) > 2000 or rdata == "":
+                rdata = json.dumps(r.json(), indent=i)
+                i -= 1
+            await interaction.response.send_message(f"Raw JSON data for `{url}`:\n```{rdata}```", ephemeral=True)
+        except BaseException as e:
+            note = f"Unable to retrieve JSON payload for the request from `{url}` with exception: {e}"
+            await interaction.response.send_message(note, ephemeral=True)
+
 
     @ac.command(
         name = "view_log",
