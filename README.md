@@ -2,11 +2,12 @@
 A custom Discord bot with moderation and communication tools.
 
 ## Adding the bot to a server
-Go to https://discord.com/developers/applications. Create a New Application with whatever name you like. You can put it into a team if you have multiple members managing the bot. In the left pane, go to Installation. Navigate to Install Link and set it to None and apply changes. 
-
-Navigate to the Bot tab in the left pane. Turn off Public Bot, turn on Server Members Intent and Message Content Intent.
-
-Navigate to the OAuth tab in the left pane. Select bot and applications.commands scopes. Copy the generated URL at the bottom and paste that into your browser. This will add the bot to the server.
+1. Go to https://discord.com/developers/applications.
+2. Create a New Application with whatever name you like. You can put it into a team if you have multiple members managing the bot.
+3. In the left pane, go to Installation.
+4. Navigate to Install Link and set it to None and apply changes.
+5. Navigate to the Bot tab in the left pane. Turn off Public Bot. Turn on Server Members Intent and Message Content Intent.
+6. Navigate to the OAuth tab in the left pane. Select `bot` and `applications.commands` scopes. Copy the generated URL at the bottom and paste that into your browser. This will add the bot to the server.
 
 ### Permissions:
 #### General:
