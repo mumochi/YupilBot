@@ -8,6 +8,7 @@ A custom Discord bot with moderation and communication tools.
 4. Navigate to Install Link and set it to None and apply changes.
 5. Navigate to the Bot tab in the left pane. Turn off Public Bot. Turn on Server Members Intent and Message Content Intent.
 6. Navigate to the OAuth tab in the left pane. Select `bot` and `applications.commands` scopes. Copy the generated URL at the bottom and paste that into your browser. This will add the bot to the server.
+7. Set permissions (see below).
 
 ### Permissions:
 #### General:
