@@ -103,7 +103,12 @@ Once everything has been successfully installed and the first-time setup has bee
 YupilBot uses the `YUPIL_ENV` environment variable to know which .env file to read. This will preferably be prod (production) for your main instance of Yupil Bot and anything else for your testing versions. Here, we'll assume a prod rather than a development environment, though you can edit this as necessary. (Note: if you have multiple users or don't want to set it each time, you can set `YUPIL_ENV` in `/etc/environment` so that it applies to all users by adding the line: `YUPIL_ENV=prod`).  
 
 ### Setting up a tmux session
-We highly recommend setting up a tmux session. Tmux is handy to keep the YupilBot session alive after you disconnect (e.g., if you're connecting to a remote server instance); otherwise, it might kill your instance of YupilBot after some time. This should already be installed if you're running Ubuntu 24.04 or other common Linux distributions. This is a handy cheat sheet for the commands if you don't use it often: https://tmuxcheatsheet.com/ Create a new session tmux new -s <sessionName> You can then attach to the session and execute your commands as normal. Ctrl+b then d will disconnect you from the tmux session.
+We highly recommend setting up a tmux session. Tmux is handy to keep the YupilBot session alive after you disconnect (e.g., if you're connecting to a remote server instance); otherwise, it might kill your instance of YupilBot after some time. This should already be installed if you're running Ubuntu 24.04 or other common Linux distributions. This is a handy cheat sheet for the commands if you don't use it often: https://tmuxcheatsheet.com/  
+Create a new session:
+```shell
+tmux new -s <sessionName>
+```
+You can then attach to the session and execute your commands as normal. Ctrl+b then d will disconnect you from the tmux session.
 
 ### Running
 To run from a direction installation:
