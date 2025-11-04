@@ -9,7 +9,7 @@ To run the first-time setup with setup.py, run interactively and mount the Yupil
 docker run -it -v .:/yupilbot yupilbot:latest python3 setup.py
 ```
 
-For a normal bot run, mount the YupilBot directory:
+For a normal bot run, set the production environment variable and mount the YupilBot directory:
 ```shell
 docker run -e YUPIL_ENV=prod -v .:/yupilbot yupilbot:latest python3 main.py
 ```
