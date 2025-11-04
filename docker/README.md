@@ -11,5 +11,5 @@ docker run -it -v .:/yupilbot yupilbot:latest python3 setup.py
 
 For a normal bot run, mount the YupilBot directory:
 ```shell
-docker run -e YUPIL_ENV=prod -v .:/yupilbot yupilbot:latest python3 setup.py
+docker run -e YUPIL_ENV=prod -v .:/yupilbot yupilbot:latest python3 main.py
 ```
