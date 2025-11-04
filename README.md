@@ -69,7 +69,7 @@ docker build -t yupilbot ./docker/
 This creates a local `yupilbot:latest` Docker image containing Python 3.13.7 and all of the package dependencies.
 
 ### First-time setup
-Once Python 3.13.7 and all of the package dependencies are available, either through direction installation or with the Docker image, first-time setup can be run from [setup.py](setup.py), which will generate a production `.env` environment file and a configuration `config.ini` file.
+Once Python 3.13.7 and all of the package dependencies are available, either through direct installation or with the Docker image, first-time setup can be run from [setup.py](setup.py), which will generate a production `.env` environment file and a configuration `config.ini` file.
 
 To run from a direct installation, make sure you're in the root YupilBot directory and run:
 ```shell
@@ -111,7 +111,7 @@ tmux new -s <sessionName>
 You can then attach to the session and execute your commands as normal. Ctrl+b then d will disconnect you from the tmux session.
 
 ### Running
-To run from a direction installation:
+To run from a direct installation:
 ```shell
 export YUPIL_ENV=prod
 source yupilbot/bin/activate
