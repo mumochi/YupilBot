@@ -143,6 +143,7 @@ class DebugCog(commands.Cog):
         else:
             await interaction.response.send_message("Please give either:\n1. A valid member or\n2. Both a valid channel and a valid message ID (str)", ephemeral=True)
             return
+        await interaction.response.defer(ephemeral=True, thinking=True)
         try:
             r = requests.get(url=url, headers=headers)
             rdata = ""
@@ -152,10 +153,10 @@ class DebugCog(commands.Cog):
             while len(rdata) > 2000 or rdata == "":
                 rdata = json.dumps(r.json(), indent=i)
                 i -= 1
-            await interaction.response.send_message(f"Raw JSON data for `{url}`:\n```{rdata}```", ephemeral=True)
+            await interaction.followup.send(f"Raw JSON data for `{url}`:\n```{rdata}```", ephemeral=True)
         except BaseException as e:
             note = f"Unable to retrieve JSON payload for the request from `{url}` with exception: {e}"
-            await interaction.response.send_message(note, ephemeral=True)
+            await interaction.followup.send(note, ephemeral=True)
 
 
     @ac.command(
