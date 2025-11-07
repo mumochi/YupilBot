@@ -150,10 +150,10 @@ class DebugCog(commands.Cog):
             i = 4
             MAX_LEN = 2000 # max message character length; errors if higher
             # reformatting, aiming for indent=4 for better readability
-            while len(rdata) > 2000 or rdata == "":
+            while rdata == "" or len(rdata) > MAX_LEN and i >= 0:
                 rdata = json.dumps(r.json(), indent=i)
                 i -= 1
-            await interaction.followup.send(f"Raw JSON data for `{url}`:\n```{rdata}```", ephemeral=True)
+            await interaction.followup.send(f"Raw JSON data for `{url}`:\n```{rdata[0:MAX_LEN-200]}```", ephemeral=True)
         except BaseException as e:
             note = f"Unable to retrieve JSON payload for the request from `{url}` with exception: {e}"
             await interaction.followup.send(note, ephemeral=True)
