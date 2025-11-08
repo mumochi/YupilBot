@@ -1,15 +1,21 @@
 # Module for manual loading, reloading, and unloading extensions as well as syncing commands
 
 import os
+import re
 import sys
 import discord
 from discord.ext import commands
 import discord.app_commands as ac
+from typing import Optional
+import configparser
+import json
+import requests
 
 # List acceptable parameter values
 # Doesn't allow config.py, helpers.py, or meta.py to be actioned because this will break dynamic extensions, forcing a bot restart
 ext_list = (ext.rstrip(".py") for ext in os.listdir("./ext") if ext.endswith(".py") and ext not in ("config.py", "helpers.py", "meta.py"))
 act_list = ("load", "reload", "unload")
+toggle_list = ("disable_external_forwarding", "disable_webcams")
 
 class ExtCog(commands.Cog):
     def __init__(self, bot: commands.Bot) -> None:
@@ -45,6 +51,41 @@ class ExtCog(commands.Cog):
                 await interaction.response.send_message(f"Unloaded extension: {extension}", ephemeral=True)
             except commands.ExtensionNotLoaded:
                 await interaction.response.send_message(f"\"{extension}\" extension is not loaded.", ephemeral=True)
+
+class ToggleCog(commands.Cog):
+    def __init__(self, bot: commands.Bot) -> None:
+        self.bot = bot
+
+    @ac.command(
+        name="toggle",
+        description="Toggle bot commands. Changes will be saved to the config.ini file."
+    )
+    @ac.describe(
+        function="Name of function.",
+        toggle_state="Enable or disable function."
+    )
+    @ac.choices(
+        function=[ac.Choice(name=cmd, value=cmd) for cmd in toggle_list],
+        toggle_state=[ac.Choice(name=state, value=state) for state in ["True", "False"]]
+    )
+    async def toggle(self, interaction: discord.Interaction, function: str, toggle_state: str) -> None:
+        """Enables or disables a bot function."""
+        config = configparser.ConfigParser()
+        config.read("config.ini")
+        if function == "disable_external_forwarding":
+            self.bot.config.disable_external_forwarding = True if toggle_state == "True" else False
+            for section in config.sections():
+                config[section]["disable_external_forwarding"] = toggle_state
+            with open("config.ini", "w") as configfile:
+                config.write(configfile)
+            await interaction.response.send_message(f"Function {function} toggled to \"{toggle_state}\".", ephemeral=True)
+        elif function == "disable_webcams":
+            self.bot.config.disable_webcams = True if toggle_state == "True" else False
+            for section in config.sections():
+                config[section]["disable_webcams"] = toggle_state
+            with open("config.ini", "w") as configfile:
+                config.write(configfile)
+            await interaction.response.send_message(f"Function {function} toggled to \"{toggle_state}\".", ephemeral=True)
     
 class SyncCog(commands.Cog):
     def __init__(self, bot: commands.Bot) -> None:
@@ -76,8 +117,90 @@ class KillCog(commands.Cog):
         await log_channel.send(f"{interaction.user.global_name} murdered Yupil Bot for: {reason} <:{deadge.name}:{deadge.id}>")
         sys.exit(reason)
 
+class DebugCog(commands.Cog):
+    def __init__(self, bot: commands.Bot) -> None:
+        self.bot = bot
+
+    @ac.command(
+        name = "json_request",
+        description = "Debug function to return raw json data for a request."
+    )
+    @ac.describe(
+        member = "Member to look up (optional).",
+        channel = "Channel containing a message to look up (optional, use with message_id).",
+        message_id = "Message ID (str) to look up (optional, use with channel)."
+    )
+    async def json_request(self, interaction: discord.Interaction, member: Optional[discord.Member], channel: Optional[discord.TextChannel]=None, message_id: Optional[str]=None) -> None:
+        """Performs a direct REST API request and retrieves the json payload."""
+        headers = {
+            'Accept': 'application/json',
+            'Authorization': f'Bot {self.bot.config.token}'
+        }
+        if member is not None:
+            url = f"https://discord.com/api/v10/guilds/{self.bot.config.server_id}/members/{member.id}"
+        elif channel is not None and message_id is not None:
+            url = f"https://discord.com/api/v10/channels/{channel.id}/messages/{message_id}"
+        else:
+            await interaction.response.send_message("Please give either:\n1. A valid member or\n2. Both a valid channel and a valid message ID (str)", ephemeral=True)
+            return
+        await interaction.response.defer(ephemeral=True, thinking=True)
+        try:
+            r = requests.get(url=url, headers=headers)
+            rdata = ""
+            i = 4
+            MAX_LEN = 2000 # max message character length; errors if higher
+            # reformatting, aiming for indent=4 for better readability
+            while rdata == "" or len(rdata) > MAX_LEN and i >= 0:
+                rdata = json.dumps(r.json(), indent=i)
+                i -= 1
+            await interaction.followup.send(f"Raw JSON data for `{url}`:\n```{rdata[0:MAX_LEN-200]}```", ephemeral=True)
+        except BaseException as e:
+            note = f"Unable to retrieve JSON payload for the request from `{url}` with exception: {e}"
+            await interaction.followup.send(note, ephemeral=True)
+
+
+    @ac.command(
+        name = "view_log",
+        description = "Sends discord.log tail text as a chat message."
+    )
+    @ac.describe(
+        warnings = "Only show log lines with warnings.",
+        errors = "Only show log lines with errors."
+    )
+    async def view_log(self, interaction: discord.Interaction, warnings: Optional[bool]=False, errors: Optional[bool]=False) -> None:
+        """Reads discord.log file and sends tail contents as an embed message."""
+        EMBED_MAX = 4096
+        DUMMYVAL = "DUMMYVAL1234"
+        
+        warn_pattern = "warn" if warnings is True else DUMMYVAL
+        error_pattern = "error" if errors is True else DUMMYVAL
+
+        if warnings is True or errors is True:
+            with open("discord.log", "r") as f:
+                lines = "".join(line for line in f.readlines() if re.search(warn_pattern, line.lower()) or re.search(error_pattern, line.lower())) 
+        
+        else:
+            with open("discord.log", "r") as f:
+                lines = "".join(f.readlines())         
+
+        if len(lines) > EMBED_MAX:
+            start_index = lines.find("\n", len(lines)-EMBED_MAX)
+            lines = lines[start_index:len(lines)-1] 
+
+        elif len(lines) == 0:
+            lines = "No entries available for query."  
+
+        embed = discord.Embed(title="discord.log",
+                                    description=lines,
+                                    color=self.bot.helpers.yupil_color)
+
+        await interaction.response.send_message(embed=embed)
+  
 
 async def setup(bot: commands.Bot) -> None:
     await bot.add_cog(ExtCog(bot=bot))
+    await bot.add_cog(ToggleCog(bot=bot))
     await bot.add_cog(SyncCog(bot=bot))
     await bot.add_cog(KillCog(bot=bot))
+    await bot.add_cog(DebugCog(bot=bot))
+    

@@ -21,7 +21,9 @@ class ConfigManager:
         self.log_channel = int(config_env['log_channel'])
         self.priority_log_channel = int(config_env['priority_log_channel'])
         self.max_messages = int(config_env['cache_size'])
-        self.permitted_role = config_env['permitted_role']  # Only users with this role can use the commands
         self.all_role = config_env['all_role'] # Cosmetic role assigned to every member upon joining
         self.vc_role = config_env['vc_role'] # Role assigned allowing VC access
-        self.disable_webcams = bool(config_env['disable_webcams'])
+        self.disable_webcams = eval(config_env['disable_webcams'])
+        self.disable_external_forwarding = eval(config_env['disable_external_forwarding'])
+        self.message_spam_age = int(config_env['message_spam_age'])
+        self.message_spam_cache = int(config_env['message_spam_cache'])

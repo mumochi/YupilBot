@@ -54,7 +54,7 @@ class CommsCog(commands.Cog):
             embed.set_image(url=image_url)
 
             if reply_id:
-                reply_message, ctx_message = await self.bot.helpers.valid_message(channel=channel, message_id=reply_id)
+                reply_message, ctx_message = await self.bot.helpers.valid_message(channel=channel, message_id=reply_id, action_type="reply")
                 await channel.send(embed=embed, allowed_mentions=discord.AllowedMentions.none(), reference=reply_message)
                 await interaction.response.send_message(ctx_message, ephemeral=True)
             else:
@@ -62,7 +62,7 @@ class CommsCog(commands.Cog):
                 await interaction.response.send_message(f"Message sent to {channel.jump_url}", ephemeral=True)
         else:
             if reply_id:
-                reply_message, ctx_message = await self.bot.helpers.valid_message(channel=channel, message_id=reply_id)
+                reply_message, ctx_message = await self.bot.helpers.valid_message(channel=channel, message_id=reply_id, action_type="reply")
                 await channel.send(message, allowed_mentions=discord.AllowedMentions.none(), reference=reply_message)
                 await interaction.response.send_message(ctx_message, ephemeral=True)
             else:    
@@ -73,11 +73,11 @@ class CommsCog(commands.Cog):
     @ac.command(
         name="dm",
         description="Sends a DM to the indicated user."
-)
+        )
     @ac.describe(
         message="Message to send to user",
         user="User to send message to"
-    )
+        )
     async def dm(self, interaction: discord.Interaction, message: str, user: discord.Member) -> None:
         """Sends a DM to the indicated user."""
         log_channel = self.bot.get_channel(self.bot.config.log_channel)
@@ -95,6 +95,28 @@ class CommsCog(commands.Cog):
             await interaction.response.send_message(f"DM sent to {user.display_name}. View log: {message_log.jump_url}", ephemeral=True)
         except:
             await interaction.response.send_message(f"DM failed to send. {user.display_name} may have DMs turned off.", ephemeral=True)
+
+    # Edit message
+    @ac.command(
+        name="edit",
+        description="Edits a message previously sent by bot."
+    )
+    @ac.describe(
+        channel="Channel of message to be edited",
+        message_id="Message ID for the message to edit",
+        new_text="Edited message text"
+    )
+    async def edit(self, interaction: discord.Interaction, channel: Union[discord.TextChannel, discord.Thread, discord.VoiceChannel, discord.StageChannel],message_id: str, new_text: str) -> None:
+        """Edits a message previously sent by the bot."""
+        edit_message, ctx_message = await self.bot.helpers.valid_message(channel=channel, message_id=message_id, action_type="edit")
+        if edit_message is None:
+            await interaction.response.send_message(ctx_message, ephemeral=True)
+            return
+        if edit_message.author.id == self.bot.user.id:
+            await edit_message.edit(content=new_text)
+            await interaction.response.send_message(ctx_message, ephemeral=True)
+        else:
+            await interaction.response.send_message(f"Unable to edit message; message must be authored by {self.bot.user.name}.", ephemeral=True)
 
 async def setup(bot: commands.Bot) -> None:
     await bot.add_cog(CommsCog(bot=bot))
