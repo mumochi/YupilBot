@@ -43,11 +43,11 @@ class ModCog(commands.Cog):
                 await member.send(embed=embed)
                 embed.title = f"Mod action `{action}` applied to {member.display_name}. Reason sent as a DM:"
                 message_log = await log_channel.send(embed=embed)
-                await interaction.response.send_message(f"DM sent to {member.display_name}. View log: {message_log.jump_url}", ephemeral=True)
+                await interaction.followup.send(f"DM sent to {member.display_name}. View log: {message_log.jump_url}", ephemeral=True)
             except:
-                await interaction.response.send_message(f"DM failed to send. {member.display_name} may have DMs turned off.", ephemeral=True)
+                await interaction.followup.send(f"DM failed to send. {member.display_name} may have DMs turned off.", ephemeral=True)
         else:
-            await interaction.response.send_message(f"`{action}` applied to {member.display_name}")
+            await interaction.followup.send(f"`{action}` applied to {member.display_name}")
 
     async def toggle_channel_visibility(self, member: discord.Member, toggle: str) -> None:
         """Sets all channel overrides to restrict visibility for user."""
@@ -80,6 +80,7 @@ class ModCog(commands.Cog):
         reason="Reason for the timeout; attempts to send DM to member (optional, default: None)"
     )
     async def timeout(self, interaction: discord.Interaction, member: discord.Member, duration: Optional[int]=15, reason: Optional[str]=None) -> None:
+        await interaction.response.defer(ephemeral=True, thinking=True)
         penalty = dt.timedelta(minutes=duration)
         await member.timeout(penalty, reason=reason)
         await self.log_dm(interaction=interaction, action="timeout", message=reason, member=member)
@@ -94,17 +95,20 @@ class ModCog(commands.Cog):
     )
     async def botkick(self, interaction: discord.Interaction, member: discord.Member) -> None:
         """Standardized messaging and kick handling for likely bots."""
+        await interaction.response.defer(ephemeral=True, thinking=True)
         timestamp = dt.datetime.now()
         reason = "Discord has detected unusual activity on your account consistent with bot and/or spam messages. Please send in a support ticket if you believe this was done in error."
-        welcome_channel = self.bot.get_channel(self.bot.config.welcome_channel)
-
-        async for m in welcome_channel.history(limit=20):
-                if m.author.id == member.id:
-                    await m.delete()
 
         # Must send DM before kicking or it won't be sendable
         await self.log_dm(interaction=interaction, action="botkick", member=member, message=reason)
         await member.kick()
+
+        # Cleanup
+        welcome_channel = self.bot.get_channel(self.bot.config.welcome_channel)
+
+        async for m in welcome_channel.history(limit=20):
+            if m.author.id == member.id:
+                await m.delete()
 
     # Purge messages from a channel or member
     # NOTE: Member purge is an experimental feature based on unstable spec here: https://github.com/discord/discord-api-docs/discussions/3216
@@ -172,6 +176,7 @@ class ModCog(commands.Cog):
     )
     async def softban(self, interaction: discord.Interaction, member: discord.Member, reason: Optional[str]=None) -> None:
         # Must send DM before banning or it won't be sendable
+        await interaction.response.defer(ephemeral=True, thinking=True)
         await self.log_dm(interaction=interaction, action="softban", member=member, message=reason)
         await member.ban()
         await member.unban()
@@ -186,6 +191,7 @@ class ModCog(commands.Cog):
     )
     async def ban(self, interaction: discord.Interaction, member: discord.Member, reason: Optional[str]=None) -> None:
         # Must send DM before banning or it won't be sendable
+        await interaction.response.defer(ephemeral=True, thinking=True)
         await self.log_dm(interaction=interaction, action="ban", member=member, message=reason)
         await member.ban()
 
@@ -199,10 +205,9 @@ class ModCog(commands.Cog):
     async def restrict(self, interaction: discord.Interaction, member: discord.Member) -> None:
         """Restricts a member from viewing all channels."""
         timestamp = dt.datetime.now()
-        await interaction.response.send_message(f"Restricting {member.display_name}. This may take some time.", ephemeral=True)
+        await interaction.response.defer(ephemeral=True, thinking=True)
         await self.toggle_channel_visibility(member=member, toggle="off")
         await self.log_dm(interaction=interaction, action="restrict", member=member, message=None)
-        await interaction.delete_original_response()
 
     @ac.command(
             name = "unrestrict",
@@ -214,10 +219,9 @@ class ModCog(commands.Cog):
     async def unrestrict(self, interaction: discord.Interaction, member: discord.Member) -> None:
         """Restricts a user from viewing all channels."""
         timestamp = dt.datetime.now()
-        await interaction.response.send_message(f"Unrestricting {member.display_name}. This may take some time.", ephemeral=True)
+        await interaction.response.defer(ephemeral=True, thinking=True)
         await self.toggle_channel_visibility(member=member, toggle="on")
         await self.log_dm(interaction=interaction, action="unrestrict", member=member, message=None)
-        await interaction.delete_original_response()
         
 
 async def setup(bot: commands.Bot) -> None:
