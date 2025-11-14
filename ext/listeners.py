@@ -248,23 +248,14 @@ class ListenCog(commands.Cog):
         self.message_cache.append(message)
         await self.detect_spam(messages=self.message_cache, time=now)
 
-    # Run daily checks at UTC 17:30
-    # NOTE: experimental and might also require running fetch_members() instead of calling guild.members
-    @tasks.loop(time=dt.time(hour=17, minute=30, tzinfo=dt.timezone.utc))
+    # Run daily checks at UTC 16:00
+    @tasks.loop(time=dt.time(hour=16, minute=00, tzinfo=dt.timezone.utc))
     async def run_member_checks(self) -> None:
         time_check = dt.datetime.now(dt.timezone.utc) - dt.timedelta(hours=25)
         guild = self.bot.get_guild(int(self.bot.config.server_id))
-        if len(guild.members) < guild.member_count:
-            await guild.chunk()
-        members = guild.members
-        new_members = (member for member in members if member.joined_at > time_check)
+        new_members = [member for member in guild.members if member.joined_at > time_check]
         for member in new_members:
             await self.add_missing_roles(member=member)
-            await asyncio.sleep(1) # Help avoid rate-limiting
-
-        spammers = (member for member in members if member.public_flags.spammer is True)
-        for member in spammers:
-            await self.log_spammer(member=member)
             await asyncio.sleep(1) # Help avoid rate-limiting
 
     # Log message deletions
