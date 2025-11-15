@@ -206,6 +206,16 @@ class ListenCog(commands.Cog):
         await asyncio.sleep(1) # Help avoid rate-limiting
         await self.check_excess_dms(after)  
 
+    @commands.Cog.listener()
+    async def on_member_update(self, before: discord.Member, after: discord.Member) -> None:
+        if before.bot:
+            return
+        if after.public_flags.spammer:
+            await asyncio.sleep(1) # Help avoid rate-limiting
+            await self.log_spammer(after)
+        await asyncio.sleep(1) # Help avoid rate-limiting
+        await self.check_excess_dms(after)          
+
     
     # Listen for voice state changes
     @commands.Cog.listener()
