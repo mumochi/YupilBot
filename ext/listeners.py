@@ -197,16 +197,6 @@ class ListenCog(commands.Cog):
             await self.bot.helpers.append_log(function="ext/listeners.py on_member_join", entry=msg)
 
     @commands.Cog.listener()
-    async def on_user_update(self, before: discord.User, after: discord.User) -> None:
-        if before.bot:
-            return
-        if after.public_flags.spammer:
-            await asyncio.sleep(1) # Help avoid rate-limiting
-            await self.log_spammer(after)
-        await asyncio.sleep(1) # Help avoid rate-limiting
-        await self.check_excess_dms(after)  
-
-    @commands.Cog.listener()
     async def on_member_update(self, before: discord.Member, after: discord.Member) -> None:
         if before.bot:
             return
@@ -267,6 +257,22 @@ class ListenCog(commands.Cog):
         for member in new_members:
             await self.add_missing_roles(member=member)
             await asyncio.sleep(1) # Help avoid rate-limiting
+
+        # Experimental section: uses undocumented member search endpoint with unusual_account_activity filter
+        url = f"https://discord.com/api/v10/guilds/{self.bot.config.server_id}/members-search"
+        headers = {'Accept': 'application/json', 'Authorization': f'Bot {self.bot.config.token}'}
+        request_json = {"or_query":{"safety_signals":{"unusual_account_activity":True}},"and_query":{},"limit":250}
+        try:
+            spam_check = requests.post(url=url, headers=headers, json=request_json)
+            spammer_data = spam_check.json()["members"] if "members" in spam_check.json().keys() else []
+            if len(spammer_data) > 0:
+                for s in spammer_data:
+                    member_id = s["member"]["user"]["id"]
+                    member = await guild.fetch_member(int(member_id))
+                    await asyncio.sleep(1) # Help avoid rate-limiting
+                    await self.log_spammer(member)
+        except BaseException as e:
+            await self.bot.helpers.append_log(function="ext/listeners.py run_member_checks", entry=f"Spammer check error: {e}")
 
     # Log message deletions
     @commands.Cog.listener()
