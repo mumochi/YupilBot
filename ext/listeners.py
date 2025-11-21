@@ -197,16 +197,6 @@ class ListenCog(commands.Cog):
             await self.bot.helpers.append_log(function="ext/listeners.py on_member_join", entry=msg)
 
     @commands.Cog.listener()
-    async def on_user_update(self, before: discord.User, after: discord.User) -> None:
-        if before.bot:
-            return
-        if after.public_flags.spammer:
-            await asyncio.sleep(1) # Help avoid rate-limiting
-            await self.log_spammer(after)
-        await asyncio.sleep(1) # Help avoid rate-limiting
-        await self.check_excess_dms(after)  
-
-    @commands.Cog.listener()
     async def on_member_update(self, before: discord.Member, after: discord.Member) -> None:
         if before.bot:
             return
