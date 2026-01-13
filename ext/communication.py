@@ -113,6 +113,7 @@ class CommsCog(commands.Cog):
             await interaction.response.send_message(ctx_message, ephemeral=True)
             return
         if edit_message.author.id == self.bot.user.id:
+            edit_message = edit_message.replace(r'\n', '\n') # Supports sending newline breaks
             await edit_message.edit(content=new_text)
             await interaction.response.send_message(ctx_message, ephemeral=True)
         else:
